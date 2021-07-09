@@ -27,7 +27,8 @@ def get_wind_time(netCDF_file_path, location):
     """
     with netcdf.netcdf_file(netCDF_file_path, 'r') as f:
         # Attention use "- 1" due to the shift between ferret and python
-        k = location[0] - 1 # 80 m
+        # k is a special case sometimes 3 levels sometimes 2
+        k = f.variables['UUZ'][0,:,0,0].shape[0] - 1 # 80 m 
         j = location[1] - 1 # j wind farm
         i = location[2] - 1 # i wind farm
         
@@ -121,6 +122,7 @@ def create_dataframe(path_ores_data, path_mar_data):
 
     ores_df = pd.read_csv(path_ores_data, header=None, names=names)
 
+    # Correction DataFrame for corrupted files
     if path_ores_data in paths_corrupted:
         ores_df = ores_df.set_index(np.arange(0,len(ores_df),1))
         ores_df['coord'][ores_df['coord'] == 6.198469] = "50.386792,6.198469"
@@ -133,11 +135,12 @@ def create_dataframe(path_ores_data, path_mar_data):
     
     locations = [(2,31,61), (2,17,27), (2,23,39)] # (k,j,i)
     
+    # Init list to contain all the data
     dataset = []
     
     for i, location in enumerate(locations):
         print(f"(i, location) = ({i}, {location})")
-        time_serie = prod_per_wind_farm.iloc[i] # Get prod from the 1st wind farm
+        time_serie = prod_per_wind_farm.iloc[i] # Get prod for i th wind farm
 
         uuz, vvz, time, start_time = get_wind_time(netCDF_file_path=path_mar_data, 
                                                    location=location)
@@ -147,12 +150,12 @@ def create_dataframe(path_ores_data, path_mar_data):
 
         # DataFrame
         data = {"uuz":uuz, "vvz": vvz, "time":time}
-        df = pd.DataFrame(data)
+        netcdf_df = pd.DataFrame(data)
 
         # Interpolation part
         # Wind Speed X
-        points = [convert_date_to_min(date=str(date)) for date in df['time'][:]]
-        values = df['uuz'][:]
+        points = [convert_date_to_min(date=str(date)) for date in netcdf_df['time'][:]]
+        values = netcdf_df['uuz'][:]
 
         interp_x = [convert_date_to_min(date=date[:-1]) 
                     for date in time_serie.index.values]
@@ -160,8 +163,8 @@ def create_dataframe(path_ores_data, path_mar_data):
         interp_speedX = np.interp(interp_x, points, values)
 
         # Wind Speed Y
-        points = [convert_date_to_min(date=str(date)) for date in df['time'][:]]
-        values = df['vvz'][:]
+        points = [convert_date_to_min(date=str(date)) for date in netcdf_df['time'][:]]
+        values = netcdf_df['vvz'][:]
 
         interp_y = [convert_date_to_min(date=date[:-1]) 
                     for date in time_serie.index.values]
@@ -176,7 +179,8 @@ def create_dataframe(path_ores_data, path_mar_data):
         dataset = dataset + [(f"prod_wf{i}",time_serie.values), 
                              (f"windSpeedNorm{i}", norm_ws),
                              (f"time{i}", time_serie.index.values)]
-        
+
+    # convert list into dictionary to construct the DataFrame   
     dataset = {key:value for key, value in dataset}
         
     df = pd.DataFrame(dataset)
