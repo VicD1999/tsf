@@ -122,7 +122,7 @@ def create_dataframe(path_ores_data, path_mar_data):
     ores_df = pd.read_csv(path_ores_data, header=None, names=names)
 
     if path_ores_data in paths_corrupted:
-        ores_df = ores_df.set_index(np.arange(0,len(df),1))
+        ores_df = ores_df.set_index(np.arange(0,len(ores_df),1))
         ores_df['coord'][ores_df['coord'] == 6.198469] = "50.386792,6.198469"
         ores_df['coord'][ores_df['coord'] == 3.64753] = "50.58274,3.64753"
         ores_df['coord'][ores_df['coord'] == 4.575570] = "50.53690,4.57557"
