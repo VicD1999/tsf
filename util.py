@@ -138,9 +138,6 @@ def create_dataframe(path_ores_data, path_mar_data):
 
     ores_df = pd.read_csv(path_ores_data, header=None, names=names)
 
-    power_installed = ores_df.sort_values(by="coord",
-                        axis=0)['rated installed power (kVA)'].unique()
-
     # Correction DataFrame for corrupted files
     if path_ores_data in paths_corrupted:
         ores_df = ores_df.set_index(np.arange(0,len(ores_df),1))
@@ -151,6 +148,9 @@ def create_dataframe(path_ores_data, path_mar_data):
     prod_per_wind_farm = ores_df.pivot(index="coord", 
                                        columns="Date-Time", 
                                        values="kW")
+
+    power_installed = ores_df.sort_values(by="coord",
+                        axis=0)['rated installed power (kVA)'].unique()
     
     locations = [(2,31,61), (2,17,27), (2,23,39)] # (k,j,i)
     
@@ -268,6 +268,21 @@ def create_dataset(vervose=True):
 
     dataset[f"sin_" + f"time"] = [f_sin(ele) for ele in vector_seconds]
     dataset[f"cos_" + f"time"] = [f_cos(ele) for ele in vector_seconds]
+
+    # Normalizing Data
+    for i in range(3):
+        mean_ws = dataset[f'windSpeedNorm{i}'].mean()
+        std_ws = dataset[f'windSpeedNorm{i}'].std()
+
+        dataset[f'windSpeedNorm{i}'] = (dataset[f'windSpeedNorm{i}'] - \
+                                        mean_ws) / std_ws
+
+                
+        dataset[f'prod_wf{i}'] = (dataset[f'prod_wf{i}'] - \
+            dataset[f'prod_wf{i}'].mean()) / dataset[f'prod_wf{i}'].std()
+        
+        
+
 
     # Save dataset
     dataset.to_csv("data/dataset.csv", index=False)
