@@ -7,10 +7,19 @@
 # TO DO
 
 - Data From WF 1 and 2
+
 - Log the time series to avoid skew distribution
-- GRU model
-- BRC/ nBRC model
-- Make main.py to train the model
-- checkpoint / save model
+
+- GRU model OK
+
+- BRC/ nBRC model OK
+
+- Make main.py to train the model OK
+
+- checkpoint / save model OK 
+
 - Train model
+
 - Transformers
+
+  
