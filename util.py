@@ -158,7 +158,7 @@ def create_dataframe(path_ores_data, path_mar_data):
     dataset = []
     
     for i, location in enumerate(locations):
-        print(f"(i, location) = ({i}, {location})")
+        print("(i, location) = ({}, {})".format(i, location))
         time_serie = prod_per_wind_farm.iloc[i] # Get prod for i th wind farm
 
         uuz, vvz, time, start_time = get_wind_time(netCDF_file_path=\
@@ -198,11 +198,11 @@ def create_dataframe(path_ores_data, path_mar_data):
         norm_ws = np.sqrt(np.square(interp_speedX) + np.square(interp_speedY))
 
         # Dataset Creation
-        dataset = dataset + [(f"prod_wf{i}", 
+        dataset = dataset + [("prod_wf{i}".format(i), 
                               time_serie.values / power_installed[i]), 
-                             (f"windSpeedNorm{i}", norm_ws)]
+                             ("windSpeedNorm{i}".format(i), norm_ws)]
 
-    dataset = dataset + [(f"time", time_serie.index.values)]
+    dataset = dataset + [("time", time_serie.index.values)]
 
     # convert list into dictionary to construct the DataFrame   
     dataset = {key:value for key, value in dataset}
@@ -234,11 +234,11 @@ def create_dataset(vervose=True):
 
             
             for i in range(3):
-                correlation = np.corrcoef(dataset[f'windSpeedNorm{i}'], 
-                                          dataset[f'prod_wf{i}'])
+                correlation = np.corrcoef(dataset['windSpeedNorm{}'.format(i)], 
+                                          dataset['prod_wf{}'.format(i)])
 
-                spearman = stats.spearmanr(dataset[f'windSpeedNorm{i}'], 
-                                           dataset[f'prod_wf{i}'])
+                spearman = stats.spearmanr(dataset['windSpeedNorm{}'.format(i)], 
+                                           dataset['prod_wf{}'.format(i)])
 
                 if vervose:
                     print("Wind farm ", i)
@@ -261,25 +261,25 @@ def create_dataset(vervose=True):
     vector_seconds = [datetime.timedelta(hours=int(ele[11:-7]), 
                       minutes=int(ele[14:-4]), 
                       seconds=int(ele[17:-1])).seconds \
-                      for ele in dataset[f"time"] ]
+                      for ele in dataset["time"] ]
 
     f_sin = lambda ele: np.sin(2*np.pi*(ele)/(24*60))
     f_cos = lambda ele: np.cos(2*np.pi*(ele)/(24*60))
 
-    dataset[f"sin_" + f"time"] = [f_sin(ele) for ele in vector_seconds]
-    dataset[f"cos_" + f"time"] = [f_cos(ele) for ele in vector_seconds]
+    dataset["sin_" + "time"] = [f_sin(ele) for ele in vector_seconds]
+    dataset["cos_" + "time"] = [f_cos(ele) for ele in vector_seconds]
 
     # Normalizing Data
     for i in range(3):
-        mean_ws = dataset[f'windSpeedNorm{i}'].mean()
-        std_ws = dataset[f'windSpeedNorm{i}'].std()
+        mean_ws = dataset['windSpeedNorm{}'.format(i)].mean()
+        std_ws = dataset['windSpeedNorm{}'.format(i)].std()
 
-        dataset[f'windSpeedNorm{i}'] = (dataset[f'windSpeedNorm{i}'] - \
+        dataset['windSpeedNorm{}'.format(i)] = (dataset['windSpeedNorm{}'.format(i)] - \
                                         mean_ws) / std_ws
 
                 
-        dataset[f'prod_wf{i}'] = (dataset[f'prod_wf{i}'] - \
-            dataset[f'prod_wf{i}'].mean()) / dataset[f'prod_wf{i}'].std()
+        dataset['prod_wf{}'.format(i)] = (dataset['prod_wf{}'.format(i)] - \
+            dataset['prod_wf{}'.format(i)].mean()) / dataset['prod_wf{}'.format(i)].std()
         
         
 
@@ -324,7 +324,7 @@ def feature_label_split(df, window_size, forecast_size,
     y = np.zeros((n_samples, forecast_size))
     
     for i in range(0, len(df)-tot_window, step):
-        if i % 100_000 == 0 and verbose:
+        if i % 100000 == 0 and verbose:
             print(round(i/(len(df)-tot_window),2))
             
         features_values = []
@@ -344,7 +344,8 @@ def feature_label_split(df, window_size, forecast_size,
 
 def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120, 
                              forecast_size=60, 
-                             features=["windSpeedNorm0", "prod_wf0", "sin_time", "cos_time"]):
+                             features=["windSpeedNorm0", "prod_wf0", 
+                                       "sin_time", "cos_time"]):
     """
     args:
     -----
@@ -417,7 +418,7 @@ def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120,
     y_test = None
     
     for i in range(num_bins):
-        print(f"Part {i} over {num_bins}")
+        print("Part {} over {}".format(i, num_bins))
         
         if i == num_bins - 1:
             df_to_feature = df.iloc[indices[i]:]

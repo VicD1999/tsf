@@ -73,7 +73,7 @@ if __name__ == '__main__':
         val_loader = DataLoader(val, batch_size=batch_size, shuffle=True)
 
         # Model Parameters
-        input_size = X_train.shape[2] # number of expected features in the input x
+        input_size = X_train.shape[2] # number of expected features for input x
         hidden_size = args.hidden_size # Num of units in the RNN
         num_layers = args.num_layers # Number of recurrent layers
         output_size = y_train.shape[1]
@@ -87,14 +87,17 @@ if __name__ == '__main__':
 
         if args.continue_training:
             print("We load the model to continue the training...")
-            model.load_state_dict(torch.load(args.continue_training, map_location=torch.device(device)), strict=False)
+            model.load_state_dict(torch.load(args.continue_training, 
+                map_location=torch.device(device)), strict=False)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
         model.to(device)
 
         losses = []
-        with open('results.csv', 'w') as f:
+        if not os.path.isdir('results'):
+                os.mkdir("results")
+        with open('results/' + args.rnn + '.csv', 'w') as f:
             f.write('epoch,train_loss,valid_loss,time\n')
 
         # Training Loop
@@ -105,6 +108,7 @@ if __name__ == '__main__':
             for x_batch, y_batch in train_loader:
                 # print(x_batch.shape)
                 # print(y_batch.shape)
+                x_batch, y_batch = x_batch.to(device), y_batch.to(device)
                 output = model(x_batch)
                 
                 # print(output.shape)
@@ -122,9 +126,9 @@ if __name__ == '__main__':
                     if not os.path.isdir("model/" + args.rnn):
                         os.mkdir("model/" + args.rnn)
                     torch.save(model.state_dict(), 
-                               f"model/" + args.rnn + f"/{e + 1}.model")
+                               "model/" + args.rnn + "/{}.model".format(e + 1))
 
-                break
+                
             mean_loss = mean_loss / train_set_len
             losses.append(mean_loss)
 
@@ -132,20 +136,22 @@ if __name__ == '__main__':
             # Validation Loss
             with torch.no_grad():
                 for x_batch, y_batch in val_loader:
+                    x_batch, y_batch = x_batch.to(device), y_batch.to(device)
                     output = model(x_batch)
                     loss_valid = F.mse_loss(output, y_batch)
                     mean_loss_valid += loss_valid
-                    break
+                    
             mean_loss_valid = mean_loss_valid / val_set_len
             
             duration = time.time() - start
 
-            if not os.path.isdir('results'):
-                os.mkdir("results")
-
+            # Write Results
             with open('results/' + args.rnn + '.csv', 'a') as f:
-                f.write('{},{},{},{}\n'.format(e + 1, mean_loss, mean_loss_valid, duration))
-            print("Epoch {} MSE Train Loss: {:.4f} MSE Valid Loss: {:.4f} Duration: {:.2f}".format(e + 1, 
-                mean_loss, mean_loss_valid, duration))
+                f.write('{},{},{},{}\n'.format(e + 1, mean_loss, 
+                                               mean_loss_valid, duration))
+
+            print("Epoch {} MSE Train Loss: {:.4f} MSE Valid Loss: \
+                {:.4f} Duration: {:.2f}".format(e + 1, 
+                    mean_loss, mean_loss_valid, duration))
 
 
