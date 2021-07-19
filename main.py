@@ -60,9 +60,11 @@ if __name__ == '__main__':
 
         X_train = torch.Tensor(data["X_train"])
         y_train = torch.Tensor(data["y_train"])
+        train_set_len = X_train.shape[0]
 
         X_valid = torch.Tensor(data["X_valid"])
         y_valid = torch.Tensor(data["y_valid"])
+        val_set_len = X_valid.shape[0]
 
         train = TensorDataset(X_train, y_train)
         val = TensorDataset(X_valid, y_valid)
@@ -123,7 +125,7 @@ if __name__ == '__main__':
                                f"model/" + args.rnn + f"/{e + 1}.model")
 
                 break
-            mean_loss = mean_loss / (len(train_loader) * args.batch_size)
+            mean_loss = mean_loss / train_set_len
             losses.append(mean_loss)
 
             mean_loss_valid = 0.
@@ -134,9 +136,10 @@ if __name__ == '__main__':
                     loss_valid = F.mse_loss(output, y_batch)
                     mean_loss_valid += loss_valid
                     break
-            mean_loss_valid = mean_loss_valid / (len(val_loader) * args.batch_size)
+            mean_loss_valid = mean_loss_valid / val_set_len
             
             duration = time.time() - start
+
             if not os.path.isdir('results'):
                 os.mkdir("results")
 
