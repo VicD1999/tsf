@@ -344,7 +344,7 @@ def feature_label_split(df, window_size, forecast_size,
 
 def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120, 
                              forecast_size=60, 
-                             features=["windSpeedNorm0", "sin_time", "cos_time"]):
+                             features=["windSpeedNorm0", "prod_wf0", "sin_time", "cos_time"]):
     """
     args:
     -----
@@ -436,7 +436,6 @@ def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120,
             else:
                 X_train = np.concatenate((X_train, X), axis=0)
                 y_train = np.concatenate((y_train, y), axis=0)
-                
         elif indices[i] in valid_set:
             if X_valid is None and y_valid is None:
                 X_valid = X
@@ -461,12 +460,14 @@ def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120,
     return split_data
 
 def load_split_dataset(path="data/data.pkl"):
+    """ Load the dataset """
     with open(path, "rb") as f:
         data = pickle.load(f)
 
     return data
 
 def write_split_dataset(data, path="data/data.pkl"):
+    """ Save the dataset """
     with open(path, "wb") as f:
         pickle.dump(data, f)
 
