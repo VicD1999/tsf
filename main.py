@@ -97,11 +97,20 @@ if __name__ == '__main__':
         losses = []
         if not os.path.isdir('results'):
                 os.mkdir("results")
-        with open('results/' + args.rnn + '.csv', 'w') as f:
-            f.write('epoch,train_loss,valid_loss,time\n')
+
+        if not args.continue_training:
+            with open('results/' + args.rnn + '.csv', 'w') as f:
+                f.write('epoch,train_loss,valid_loss,time\n')
+            restart_epoch = 0
+
+        else:
+            df = pd.read_csv('results/' + args.rnn + '.csv')
+            restart_epoch = len(df)
+            del df
+
 
         # Training Loop
-        for e in range(args.epoch):
+        for e in range(restart_epoch, restart_epoch + args.epoch):
             start = time.time()
             mean_loss = 0.
 
@@ -120,7 +129,7 @@ if __name__ == '__main__':
                 mean_loss += loss.item()
 
                 # Checkpoint
-                if e % checkpoint == 0 or e == args.epoch - 1:
+                if e % checkpoint == 0 or e == restart_epoch + args.epoch - 1:
                     if not os.path.isdir('model'):
                         os.mkdir("model")
                     if not os.path.isdir("model/" + args.rnn):
