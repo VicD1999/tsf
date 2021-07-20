@@ -472,4 +472,49 @@ def write_split_dataset(data, path="data/data.pkl"):
     with open(path, "wb") as f:
         pickle.dump(data, f)
 
+def plot_curve_losses(df):
+    """ 
+    Plot the curve losses 
+
+    args:
+    -----
+        - df: DataFrame
+              Containing the fields: "train_loss" and "valid_loss"
+
+    """
+
+    plt.figure(figsize=(6,4))
+    plt.plot(df["train_loss"], label="Train Loss")
+    plt.plot(df["valid_loss"], label="Validation Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("MSE")
+    plt.grid()
+    plt.legend()
+
+def plot_results(model, X, y, past=True):
+    """ 
+    Plot predicted results
+
+    args:
+    -----
+        - model : torch model
+        - X: input model
+        - y: true forecast
+
+    """
+    with torch.no_grad():
+        X = X.unsqueeze(0)
+
+        y_pred = model(X).squeeze(0)
+        
+        print(F.mse_loss(y_pred, y))
+        
+    plt.figure(figsize=(6,4))
+    plt.plot(y, label="True values" )
+    plt.plot(y_pred, label="Predicted values" )
+    plt.grid()
+    plt.xlabel("timestamps")
+    plt.ylabel("Production Power Normalized")
+    plt.legend()
+
 
