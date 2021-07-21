@@ -45,7 +45,7 @@ if __name__ == '__main__':
     if dataset_creation:
         u.create_dataset(vervose=False)
         df = pd.read_csv("data/dataset.csv")
-        data = u.get_random_split_dataset(df)
+        data = u.get_random_split_dataset(df, add_forecast=True)
         u.write_split_dataset(data)
 
 

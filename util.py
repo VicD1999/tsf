@@ -198,9 +198,9 @@ def create_dataframe(path_ores_data, path_mar_data):
         norm_ws = np.sqrt(np.square(interp_speedX) + np.square(interp_speedY))
 
         # Dataset Creation
-        dataset = dataset + [("prod_wf{i}".format(i), 
+        dataset = dataset + [("prod_wf{}".format(i), 
                               time_serie.values / power_installed[i]), 
-                             ("windSpeedNorm{i}".format(i), norm_ws)]
+                             ("windSpeedNorm{}".format(i), norm_ws)]
 
     dataset = dataset + [("time", time_serie.index.values)]
 
@@ -280,8 +280,6 @@ def create_dataset(vervose=True):
                 
         dataset['prod_wf{}'.format(i)] = (dataset['prod_wf{}'.format(i)] - \
             dataset['prod_wf{}'.format(i)].mean()) / dataset['prod_wf{}'.format(i)].std()
-        
-        
 
 
     # Save dataset
@@ -290,7 +288,7 @@ def create_dataset(vervose=True):
 
 
 def feature_label_split(df, window_size, forecast_size, 
-                        features, verbose=False):
+                        features, add_forecast=False, verbose=False):
     """
     
     args:
@@ -302,6 +300,8 @@ def feature_label_split(df, window_size, forecast_size,
                        Size of the forecasted window
         features: list of Strings 
                   containing the name of the features
+        add_forecast: boolean
+                      if True add forecast windSpeed in the features
         verbose: bool
                  if True print added
     return:
@@ -320,7 +320,8 @@ def feature_label_split(df, window_size, forecast_size,
     
     n_samples = len(df) // step
     
-    X = np.zeros((n_samples, window_size, len(features)))
+    X = np.zeros((n_samples, window_size, len(features)+1 if add_forecast 
+                                          else len(features)))
     y = np.zeros((n_samples, forecast_size))
     
     for i in range(0, len(df)-tot_window, step):
@@ -332,10 +333,15 @@ def feature_label_split(df, window_size, forecast_size,
         for feature in features:
             features_values.append(df[feature][i:i+window_size].values)
             
+        if add_forecast:
+            forecast = np.zeros(window_size)
+            forecast[-forecast_size:] = df["windSpeedNorm0"][i+window_size:i+window_size+forecast_size].values
+            features_values.append(forecast)
+            
         features_values = np.array(features_values).T
             
         X[i // step,:,:] = features_values
-        y[i // step,:] = df["windSpeedNorm0"]\
+        y[i // step,:] = df["prod_wf0"]\
                            [i+window_size:i+window_size+forecast_size].values
         
     
@@ -344,8 +350,9 @@ def feature_label_split(df, window_size, forecast_size,
 
 def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120, 
                              forecast_size=60, 
-                             features=["windSpeedNorm0", "prod_wf0", 
-                                       "sin_time", "cos_time"]):
+                             features=["prod_wf0", "windSpeedNorm0", 
+                                       "sin_time", "cos_time"],
+                            add_forecast=False):
     """
     args:
     -----
@@ -361,6 +368,8 @@ def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120,
                        size of the forecast window
         features: list of Strings 
                   containing the name of the features
+        add_forecast: boolean
+                      if True add forecast windSpeed in the features
     return:
     -------
         split_data: Dictionary
@@ -427,7 +436,8 @@ def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120,
         X, y = feature_label_split(df=df_to_feature, 
                                    window_size=window_size, 
                                    forecast_size=forecast_size, 
-                                   features=features) 
+                                   features=features,
+                                   add_forecast=add_forecast) 
 
             
         if indices[i] in train_set:
@@ -460,15 +470,16 @@ def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120,
     
     return split_data
 
+
 def load_split_dataset(path="data/data.pkl"):
-    """ Load the dataset """
+    """ Load the split dataset """
     with open(path, "rb") as f:
         data = pickle.load(f)
 
     return data
 
 def write_split_dataset(data, path="data/data.pkl"):
-    """ Save the dataset """
+    """ Save the split dataset """
     with open(path, "wb") as f:
         pickle.dump(data, f)
 

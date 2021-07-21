@@ -59,14 +59,14 @@ class GRU(nn.Module):
         
         # output shape = (batch_size, input_size, num_features)
         # input_size = seq_length
-        self.lstm = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
         
         self.fc = nn.Linear(seq_length * hidden_size, output_size)
         
         
     def forward(self, x):
         # With no starting parameter h0, c0 are init to zero
-        output, (hn, cn) = self.lstm(x)
+        output, hn = self.gru(x)
                 
         # To go from (N, L, D * H_out) to (N, L * D * H_out) 
         output = torch.flatten(output, start_dim=1)
