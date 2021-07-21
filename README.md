@@ -7,7 +7,8 @@
 # TO DO
 
 - Data From WF 1 and 2
-- Log the time series to avoid skew distribution
+- Add data forecast OK
+- Log the time series to avoid skew distribution OK (no change)
 - GRU model OK
 - BRC/ nBRC model OK
 - Make main.py to train the model OK
