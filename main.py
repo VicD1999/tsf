@@ -15,6 +15,15 @@ import torch.nn.functional as F
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    # Dataset args
+    parser.add_argument('-d','--dataset_creation', help='Create the dataset', 
+                        action="store_true")
+    parser.add_argument('--forecast_size', help='Size of the forecast window', 
+                        type=int, default=60)
+    parser.add_argument('--window_size', help='Size of the input window', 
+                        type=int, default=120)
+
+    # Training args
     parser.add_argument('-ep', '--epoch', help='Number of epoch',
                         type=int, default=10)
     parser.add_argument('-batch', '--batch_size', help='Batch size', type=int,
@@ -25,14 +34,16 @@ if __name__ == '__main__':
                         default=64)
     parser.add_argument('--num_layers', help='Number of layers in the RNN', 
                         type=int, default=1)
-    parser.add_argument('-d','--dataset_creation', help='Create the dataset', 
-                        action="store_true")
     parser.add_argument('-t','--training', help='Train the model', 
                         action="store_true")
     parser.add_argument('--rnn', help='RNN type: LSTM GRU BRC nBRC', type=str)
     parser.add_argument('-c_t','--continue_training',
         help='Continue the training. Requires the path of the model to train', 
         required=False, default=None, type=str)
+
+    # Model Evaluation args
+    parser.add_argument('-e','--evaluation', help='Eval model', 
+                        type=str, default=None)
 
     args = parser.parse_args()
 
@@ -45,8 +56,10 @@ if __name__ == '__main__':
     if dataset_creation:
         u.create_dataset(vervose=False)
         df = pd.read_csv("data/dataset.csv")
-        data = u.get_random_split_dataset(df, add_forecast=True)
-        u.write_split_dataset(data)
+        data = u.get_random_split_dataset(df, window_size=args.window_size, 
+                             forecast_size=args.forecast_size, add_forecast=True)
+        u.write_split_dataset(data, path="data/{}_{}.pkl".format(
+            args.window_size, args.forecast_size))
 
 
     if model_training:
@@ -56,7 +69,8 @@ if __name__ == '__main__':
         
         # Data Loading
         if not data:
-            data = u.load_split_dataset()
+            data = u.load_split_dataset(path="data/{}_{}.pkl".format(
+                args.window_size, args.forecast_size))
 
         X_train = torch.Tensor(data["X_train"])
         y_train = torch.Tensor(data["y_train"])
@@ -135,7 +149,7 @@ if __name__ == '__main__':
                     if not os.path.isdir("model/" + args.rnn):
                         os.mkdir("model/" + args.rnn)
                     torch.save(model.state_dict(), 
-                               "model/" + args.rnn + "/{}.model".format(e + 1))
+                               "model/{}/{}_{}_{}.model".format(args.rnn, args.rnn, hidden_size ,e + 1))
 
                 
             mean_loss = mean_loss / train_set_len
@@ -162,5 +176,26 @@ if __name__ == '__main__':
             print("Epoch {} MSE Train Loss: {:.4f} MSE Valid Loss: \
                 {:.4f} Duration: {:.2f}".format(e + 1, 
                     mean_loss, mean_loss_valid, duration))
+
+    if args.evaluation:
+        name_model = "LSTM"
+
+        df = pd.read_csv("results/" + name_model + ".csv")
+        print(df)
+        u.plot_curve_losses(df)
+
+        model = LSTM(input_size=5, hidden_size=args.hidden_size, 
+                     seq_length=args.window_size, output_size=args.forecast_size)
+        model.load_state_dict(torch.load("model/" + name_model + "/10.model", map_location=torch.device('cpu')), strict=False)
+
+        indexes = [0, 100, 200, 250]
+
+        data = u.load_split_dataset()
+        
+        X_valid = torch.Tensor(data["X_valid"])
+        y_valid = torch.Tensor(data["y_valid"])
+
+        for idx in indexes:
+            u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:])
 
 
