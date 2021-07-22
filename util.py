@@ -6,6 +6,10 @@ import pandas as pd
 import datetime
 import random
 import pickle
+import matplotlib.pyplot as plt
+
+import torch
+import torch.nn.functional as F
 
 paths_ores = ["data/ORES/export_eolien_2021-02-01.csv",
               "data/ORES/export_eolien_2021-03-01.csv",
@@ -483,7 +487,7 @@ def write_split_dataset(data, path="data/data.pkl"):
     with open(path, "wb") as f:
         pickle.dump(data, f)
 
-def plot_curve_losses(df):
+def plot_curve_losses(df, save_path=None):
     """ 
     Plot the curve losses 
 
@@ -491,6 +495,8 @@ def plot_curve_losses(df):
     -----
         - df: DataFrame
               Containing the fields: "train_loss" and "valid_loss"
+        - save_path: String
+                     Path where to save the figure
 
     """
 
@@ -501,8 +507,10 @@ def plot_curve_losses(df):
     plt.ylabel("MSE")
     plt.grid()
     plt.legend()
+    plt.savefig(save_path, dpi=200)
+    plt.show()
 
-def plot_results(model, X, y, past=True):
+def plot_results(model, X, y, save_path=None):
     """ 
     Plot predicted results
 
@@ -511,6 +519,8 @@ def plot_results(model, X, y, past=True):
         - model : torch model
         - X: input model
         - y: true forecast
+        - save_path: String
+                     Path where to save the figure
 
     """
     with torch.no_grad():
@@ -527,5 +537,7 @@ def plot_results(model, X, y, past=True):
     plt.xlabel("timestamps")
     plt.ylabel("Production Power Normalized")
     plt.legend()
+    plt.savefig(save_path, dpi=200)
+    plt.show()
 
 

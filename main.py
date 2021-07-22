@@ -178,24 +178,31 @@ if __name__ == '__main__':
                     mean_loss, mean_loss_valid, duration))
 
     if args.evaluation:
+        if not os.path.isdir("results/figure/"):
+            os.mkdir("results/figure/")
+
+
         name_model = "LSTM"
 
         df = pd.read_csv("results/" + name_model + ".csv")
         print(df)
-        u.plot_curve_losses(df)
+        u.plot_curve_losses(df, save_path=f"results/figure/{name_model}_curve_loss.png")
 
+        data = u.load_split_dataset(path="data/{}_{}.pkl".format(args.window_size, args.forecast_size))
+
+        X_valid = torch.Tensor(data["X_valid"])
+        y_valid = torch.Tensor(data["y_valid"])
+
+        seq_length = X_valid.shape[1]
+
+        print(args.hidden_size, seq_length, args.forecast_size)
         model = LSTM(input_size=5, hidden_size=args.hidden_size, 
-                     seq_length=args.window_size, output_size=args.forecast_size)
+                     seq_length=seq_length, output_size=args.forecast_size)
         model.load_state_dict(torch.load("model/" + name_model + "/10.model", map_location=torch.device('cpu')), strict=False)
 
         indexes = [0, 100, 200, 250]
 
-        data = u.load_split_dataset()
-        
-        X_valid = torch.Tensor(data["X_valid"])
-        y_valid = torch.Tensor(data["y_valid"])
-
         for idx in indexes:
-            u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:])
+            u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:], save_path=f"results/figure/{name_model}_{idx}.png")
 
 
