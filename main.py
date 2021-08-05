@@ -46,6 +46,10 @@ if __name__ == '__main__':
     parser.add_argument('-e','--evaluation', help='Eval model', 
                         type=str, default=None)
 
+    # Model Comparison
+    parser.add_argument('-c','--comparison', help='Compare the models', 
+                        action="store_true")
+
     args = parser.parse_args()
 
     rnns = {"LSTM":LSTM, "GRU":GRU, "BRC":BRC, "nBRC":nBRC}
@@ -194,8 +198,8 @@ if __name__ == '__main__':
         seq_length = X_valid.shape[1]
 
         print(args.hidden_size, seq_length, args.forecast_size)
-        model = LSTM(input_size=5, hidden_size=args.hidden_size, 
-                     seq_length=seq_length, output_size=args.forecast_size)
+        model = rnns[args.rnn](input_size=5, hidden_size=args.hidden_size, 
+                               seq_length=seq_length, output_size=args.forecast_size)
         model.load_state_dict(torch.load(f"model/{args.rnn}/{args.evaluation}.model", map_location=torch.device('cpu')), strict=False)
 
         indexes = [0, 100, 200, 250]
@@ -203,4 +207,61 @@ if __name__ == '__main__':
         for idx in indexes:
             u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:], save_path=f"results/figure/{args.rnn}_{idx}.png")
 
+    if args.comparison:
+        # Data Loading
+        if not data:
+            data = u.load_split_dataset(path="data/{}_{}.pkl".format(
+                args.window_size, args.forecast_size))
+
+        device = torch.device('cpu')
+        batch_size = 32
+
+        X_valid = torch.Tensor(data["X_valid"])
+        y_valid = torch.Tensor(data["y_valid"])
+        val_set_len = X_valid.shape[0]
+
+        seq_length = X_valid.shape[1]
+
+        val = TensorDataset(X_valid, y_valid)
+
+        val_loader = DataLoader(val, batch_size=batch_size, shuffle=True)
+
+        model_names = [ "LSTM_64_7" ,"GRU_64_11", "BRC_64_9", "nBRC_64_5"]
+
+        for rnn, model_name in zip(rnns, model_names):
+            model = rnns[rnn](input_size=5, hidden_size=args.hidden_size, 
+                                   seq_length=seq_length, output_size=args.forecast_size)
+            model.load_state_dict(torch.load(f"model/{rnn}/{model_name}.model", map_location=device), strict=False)
+
+            mean_loss_valid = 0
+            # Validation Loss
+            losses_valid = None
+            with torch.no_grad():
+                for x_batch, y_batch in val_loader:
+                    x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+                    output = model(x_batch)
+                    # print(output.shape)
+                    loss_valid = F.mse_loss(output, y_batch, reduction="none") # FIXME reduction = sum then divide by n_samples
+                    # print(loss_valid.shape)
+                    mse_tensor = torch.mean(loss_valid, dim=1)
+                    # print("mse Tensor", mse_tensor.shape)
+                    mean_loss_valid += torch.sum(mse_tensor, dim=0)
+
+                    if losses_valid is None:
+                        losses_valid = mse_tensor
+                    else:
+                        losses_valid = torch.cat((losses_valid, mse_tensor), dim=0)
+
+                    # print("losses_valid", losses_valid.shape)
+                    
+            mean_loss_valid = mean_loss_valid / val_set_len
+            print(losses_valid.shape)
+            std_loss_valid = torch.std(losses_valid, dim=0)
+
+            print(f"mean +- std: {mean_loss_valid} +- {std_loss_valid}")
+                
+        """
+        plt.figure(figsize=(7,5))
+        plt.bar(model_names, mean_loss_valid, yerr = std_loss_valid)
+        """
 
