@@ -1,4 +1,5 @@
 # Author: Victor Dachet
+
 from scipy import stats
 import numpy as np
 import pandas as pd
@@ -181,12 +182,9 @@ if __name__ == '__main__':
         if not os.path.isdir("results/figure/"):
             os.mkdir("results/figure/")
 
-
-        name_model = "LSTM"
-
-        df = pd.read_csv("results/" + name_model + ".csv")
+        df = pd.read_csv("results/" + args.rnn + ".csv")
         print(df)
-        u.plot_curve_losses(df, save_path=f"results/figure/{name_model}_curve_loss.png")
+        u.plot_curve_losses(df, save_path=f"results/figure/{args.rnn}_curve_loss.png")
 
         data = u.load_split_dataset(path="data/{}_{}.pkl".format(args.window_size, args.forecast_size))
 
@@ -198,11 +196,11 @@ if __name__ == '__main__':
         print(args.hidden_size, seq_length, args.forecast_size)
         model = LSTM(input_size=5, hidden_size=args.hidden_size, 
                      seq_length=seq_length, output_size=args.forecast_size)
-        model.load_state_dict(torch.load("model/" + name_model + "/10.model", map_location=torch.device('cpu')), strict=False)
+        model.load_state_dict(torch.load(f"model/{args.rnn}/{args.evaluation}.model", map_location=torch.device('cpu')), strict=False)
 
         indexes = [0, 100, 200, 250]
 
         for idx in indexes:
-            u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:], save_path=f"results/figure/{name_model}_{idx}.png")
+            u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:], save_path=f"results/figure/{args.rnn}_{idx}.png")
 
 
