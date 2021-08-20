@@ -292,11 +292,11 @@ def create_dataset(vervose=True):
     # Add sin and cosinus minutes of a day
     vector_seconds = [datetime.timedelta(hours=int(ele[11:-7]), 
                       minutes=int(ele[14:-4]), 
-                      seconds=int(ele[17:-1])).seconds \
+                      seconds=int(ele[17:-1])).total_seconds() \
                       for ele in dataset["time"] ]
 
-    f_sin = lambda ele: np.sin(2*np.pi*(ele)/(24*60))
-    f_cos = lambda ele: np.cos(2*np.pi*(ele)/(24*60))
+    f_sin = lambda ele: np.sin(2*np.pi*(ele)/(24*60*60))
+    f_cos = lambda ele: np.cos(2*np.pi*(ele)/(24*60*60))
 
     dataset["sin_" + "time"] = [f_sin(ele) for ele in vector_seconds]
     dataset["cos_" + "time"] = [f_cos(ele) for ele in vector_seconds]
