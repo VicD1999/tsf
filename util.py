@@ -117,6 +117,30 @@ def convert_date_to_min(date):
         
     return elapsed_minutes
 
+def convert_hours_to_min(date):
+    """
+    Method to convert a given number of minutes elapsed from a
+    given start_time date into a datetime object
+    e.g.:
+    convert_date_to_min(date='2016-09-01 00:00:00')
+    1060138080.0
+    
+    args:
+    -----
+        date: String 
+                    ISO format date time e.g. "2016-09-01 00:00:00"
+
+    return:
+    -------
+        elapsed_minutes: int
+                         number of minutes elapsed from 00:00 
+    """
+    min_date = datetime.datetime.min
+    elapsed_minutes = (datetime.datetime.fromisoformat(date) \
+                      - min_date).total_seconds() / 60.0
+        
+    return elapsed_minutes
+
 
 def create_dataframe(path_ores_data, path_mar_data):
     """
@@ -201,10 +225,14 @@ def create_dataframe(path_ores_data, path_mar_data):
         # Norm Wind Speed
         norm_ws = np.sqrt(np.square(interp_speedX) + np.square(interp_speedY))
 
+        # Angle Wind Speed
+        angle_ws = np.arctan2(interp_speedY, interp_speedX)
+
         # Dataset Creation
         dataset = dataset + [("prod_wf{}".format(i), 
                               time_serie.values / power_installed[i]), 
-                             ("windSpeedNorm{}".format(i), norm_ws)]
+                             ("windSpeedNorm{}".format(i), norm_ws),
+                             ("windSpeedAngle{}".format(i), angle_ws)]
 
     dataset = dataset + [("time", time_serie.index.values)]
 
@@ -500,7 +528,7 @@ def plot_curve_losses(df, save_path=None):
 
     """
 
-    plt.figure(figsize=(6,4))
+    plt.figure(figsize=(7,4))
     plt.plot(df["train_loss"], label="Train Loss")
     plt.plot(df["valid_loss"], label="Validation Loss")
     plt.xlabel("Epoch")
