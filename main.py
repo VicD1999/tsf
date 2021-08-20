@@ -61,10 +61,10 @@ if __name__ == '__main__':
     if dataset_creation:
         u.create_dataset(vervose=False)
         df = pd.read_csv("data/dataset.csv")
-        data = u.get_random_split_dataset(df, window_size=args.window_size, 
-                             forecast_size=args.forecast_size, add_forecast=True)
-        u.write_split_dataset(data, path="data/{}_{}.pkl".format(
-            args.window_size, args.forecast_size))
+        # data = u.get_random_split_dataset(df, window_size=args.window_size, 
+        #                      forecast_size=args.forecast_size, add_forecast=True)
+        # u.write_split_dataset(data, path="data/{}_{}.pkl".format(
+        #     args.window_size, args.forecast_size))
 
 
     if model_training:
@@ -113,7 +113,6 @@ if __name__ == '__main__':
 
         model.to(device)
 
-        losses = []
         if not os.path.isdir('results'):
                 os.mkdir("results")
 
@@ -127,12 +126,14 @@ if __name__ == '__main__':
             restart_epoch = len(df)
             del df
 
-
+        losses = []
+        std_losses = []
         # Training Loop
         for e in range(restart_epoch, restart_epoch + args.epoch):
             start = time.time()
             mean_loss = 0.
 
+            losses_train = None
             for x_batch, y_batch in train_loader:
                 # print(x_batch.shape)
                 # print(y_batch.shape)
@@ -145,7 +146,11 @@ if __name__ == '__main__':
                 loss.backward()
                 optimizer.step()
                 
-                mean_loss += loss.item()
+                with torch.no_grad():
+                    loss_train = F.mse_loss(output, y_batch, reduction="none")
+                    mse_tensor = torch.mean(loss_train, dim=1)
+                    losses_train = mse_tensor if losses_train is None else \
+                                   torch.cat((losses_train, mse_tensor), dim=0)
 
                 # Checkpoint
                 if e % checkpoint == 0 or e == restart_epoch + args.epoch - 1:
@@ -154,23 +159,38 @@ if __name__ == '__main__':
                     if not os.path.isdir("model/" + args.rnn):
                         os.mkdir("model/" + args.rnn)
                     torch.save(model.state_dict(), 
-                               "model/{}/{}_{}_{}.model".format(args.rnn, args.rnn, hidden_size ,e + 1))
+                               "model/{}/{}_{}_{}.model".format(args.rnn, 
+                                                                args.rnn,
+                                                                hidden_size, 
+                                                                e + 1))
 
-                
-            mean_loss = mean_loss / train_set_len
-            losses.append(mean_loss)
+            mean_loss = torch.mean(losses_train, dim=0)
+            std_loss = torch.std(losses_train, dim=0)
 
-            mean_loss_valid = 0.
             # Validation Loss
+            losses_valid = None
             with torch.no_grad():
                 for x_batch, y_batch in val_loader:
                     x_batch, y_batch = x_batch.to(device), y_batch.to(device)
                     output = model(x_batch)
-                    loss_valid = F.mse_loss(output, y_batch)
-                    mean_loss_valid += loss_valid
-                    
-            mean_loss_valid = mean_loss_valid / val_set_len
-            
+                    # loss_valid = (output_i - y_batch_i)^2
+                    # is a 2D Tensor
+                    loss_valid = F.mse_loss(output, y_batch, reduction="none")
+                    # mse_tensor is one vector containing the mse of
+                    # each sample in the batch
+                    mse_tensor = torch.mean(loss_valid, dim=1)
+
+                    # losses_valid contains the mse of each batch already
+                    # done
+                    losses_valid = mse_tensor if losses_valid is None else \
+                                   torch.cat((losses_valid, mse_tensor), dim=0)
+
+            # Get the mean of all the MSE
+            mean_loss_valid = torch.mean(losses_valid, dim=0)
+
+            # Get the standard deviation of all the MSE
+            std_loss_valid = torch.std(losses_valid, dim=0)
+
             duration = time.time() - start
 
             # Write Results
@@ -178,9 +198,9 @@ if __name__ == '__main__':
                 f.write('{},{},{},{}\n'.format(e + 1, mean_loss, 
                                                mean_loss_valid, duration))
 
-            print("Epoch {} MSE Train Loss: {:.4f} MSE Valid Loss: \
-                {:.4f} Duration: {:.2f}".format(e + 1, 
-                    mean_loss, mean_loss_valid, duration))
+            print("Epoch {} MSE Train Loss: {:.4f} +- {:.4f} MSE Valid Loss: \
+                {:.4f} +- {:.4f} Duration: {:.2f}".format(e + 1, 
+                    mean_loss, std_loss, mean_loss_valid, std_loss_valid, duration))
 
     if args.evaluation:
         if not os.path.isdir("results/figure/"):
@@ -214,13 +234,14 @@ if __name__ == '__main__':
                 args.window_size, args.forecast_size))
 
         device = torch.device('cpu')
-        batch_size = 32
+        batch_size = 16
 
         X_valid = torch.Tensor(data["X_valid"])
         y_valid = torch.Tensor(data["y_valid"])
-        val_set_len = X_valid.shape[0]
 
+        val_set_len = X_valid.shape[0]
         seq_length = X_valid.shape[1]
+        input_size = X_valid.shape[2]
 
         val = TensorDataset(X_valid, y_valid)
 
@@ -229,7 +250,7 @@ if __name__ == '__main__':
         model_names = [ "LSTM_64_7" ,"GRU_64_11", "BRC_64_9", "nBRC_64_5"]
 
         for rnn, model_name in zip(rnns, model_names):
-            model = rnns[rnn](input_size=5, hidden_size=args.hidden_size, 
+            model = rnns[rnn](input_size=input_size, hidden_size=args.hidden_size, 
                                    seq_length=seq_length, output_size=args.forecast_size)
             model.load_state_dict(torch.load(f"model/{rnn}/{model_name}.model", map_location=device), strict=False)
 
@@ -240,25 +261,26 @@ if __name__ == '__main__':
                 for x_batch, y_batch in val_loader:
                     x_batch, y_batch = x_batch.to(device), y_batch.to(device)
                     output = model(x_batch)
-                    # print(output.shape)
-                    loss_valid = F.mse_loss(output, y_batch, reduction="none") # FIXME reduction = sum then divide by n_samples
-                    # print(loss_valid.shape)
+                    # loss_valid = (output_i - y_batch_i)^2
+                    # is a 2D Tensor
+                    loss_valid = F.mse_loss(output, y_batch, reduction="none")
+                    # mse_tensor is one vector containing the mse of
+                    # each sample in the batch
                     mse_tensor = torch.mean(loss_valid, dim=1)
-                    # print("mse Tensor", mse_tensor.shape)
-                    mean_loss_valid += torch.sum(mse_tensor, dim=0)
 
-                    if losses_valid is None:
-                        losses_valid = mse_tensor
-                    else:
-                        losses_valid = torch.cat((losses_valid, mse_tensor), dim=0)
+                    # losses_valid contains the mse of each batch already
+                    # done
+                    losses_valid = mse_tensor if losses_valid is None else \
+                                   torch.cat((losses_valid, mse_tensor), dim=0)
+            
+            # Get the mean of all the MSE
+            mean_loss_valid = torch.mean(losses_valid, dim=0)
 
-                    # print("losses_valid", losses_valid.shape)
-                    
-            mean_loss_valid = mean_loss_valid / val_set_len
-            print(losses_valid.shape)
+            # Get the standard deviation of all the MSE
             std_loss_valid = torch.std(losses_valid, dim=0)
 
             print(f"mean +- std: {mean_loss_valid} +- {std_loss_valid}")
+            break
                 
         """
         plt.figure(figsize=(7,5))
