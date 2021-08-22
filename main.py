@@ -9,6 +9,7 @@ import os
 
 import util as u
 from model import *
+from attention import Attention_Net
 
 from torch.utils.data import TensorDataset, DataLoader
 import torch.nn.functional as F
@@ -37,7 +38,7 @@ if __name__ == '__main__':
                         type=int, default=1)
     parser.add_argument('-t','--training', help='Train the model', 
                         action="store_true")
-    parser.add_argument('--rnn', help='RNN type: LSTM GRU BRC nBRC', type=str)
+    parser.add_argument('--rnn', help='RNN type: LSTM GRU BRC nBRC attn', type=str)
     parser.add_argument('-c_t','--continue_training',
         help='Continue the training. Requires the path of the model to train', 
         required=False, default=None, type=str)
@@ -52,7 +53,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    rnns = {"LSTM":LSTM, "GRU":GRU, "BRC":BRC, "nBRC":nBRC}
+    rnns = {"LSTM":LSTM, "GRU":GRU, "BRC":BRC, "nBRC":nBRC, "attn":Attention_Net}
 
     dataset_creation = args.dataset_creation
     model_training = args.training
