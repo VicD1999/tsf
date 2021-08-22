@@ -63,33 +63,33 @@ class Attention_Net(nn.Module):
     input x = (B,L,P)
     output y = (B,m)
     """
-    def __init__(self, input_size, hidden_size, output_size, seq_len):
+    def __init__(self, input_size, hidden_size, output_size, seq_length):
         super(Attention_Net, self).__init__()
         self.hidden_size = hidden_size
-        self.seq_len = seq_len
+        self.seq_length = seq_length
 
         self.encoder = Encoder(input_size, hidden_size)
         self.decoder = Decoder(hidden_size, 1)
         
-        self.attn = nn.Linear(hidden_size * 2, 1)
+        self.attn = nn.Linear(hidden_size * 2, seq_length)
         
-        self.out = nn.Linear(seq_len, output_size)
+        self.out = nn.Linear(seq_length, output_size)
                   
     def forward(self, x):
-        seq_len = x.shape[1]
+        seq_length = x.shape[1]
         batch_size = x.shape[0]
         h, last_hidden = self.encoder(x, self.encoder.init_hidden())
         # h (B,L,hidden_size)
         # last_hidden (1,B,hidden_size)
         
-        y = torch.empty((batch_size, seq_len))
+        y = torch.empty((batch_size, seq_length))
         
         s_i_1 = last_hidden # s_0 is the hidden state of the last hidden encoder
-        for i in range(seq_len):
+        for i in range(seq_length):
             
             # Attention weights
-            e_i = torch.empty((batch_size, seq_len)) # (B, L)
-            for j in range(seq_len):
+            e_i = torch.empty((batch_size, seq_length)) # (B, L)
+            for j in range(seq_length):
                 h_j = h[:,j,:] # (B, hidden_size)
                 # s_i_1 (1, B, hidden_size)
                 # h_j (B, hidden_size)
@@ -121,16 +121,17 @@ class Attention_Net(nn.Module):
             
         return y
 
-data = u.load_split_dataset(path="data/120_60.pkl")
-batch_size = 32
-X_train = torch.Tensor(data["X_train"])
-y_train = torch.Tensor(data["y_train"])
-train_set_len = X_train.shape[0]
-train = TensorDataset(X_train, y_train)
-train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)
+if __name__ == '__main__':
+    data = u.load_split_dataset(path="data/120_60.pkl")
+    batch_size = 32
+    X_train = torch.Tensor(data["X_train"])
+    y_train = torch.Tensor(data["y_train"])
+    train_set_len = X_train.shape[0]
+    train = TensorDataset(X_train, y_train)
+    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)
 
-model = Attention_Net(input_size=5, hidden_size=64, output_size=20, seq_len=120)
-for x_batch, y_batch in train_loader:
-    output = model(x_batch)
-    print("output", output.shape)
-    break
+    model = Attention_Net(input_size=5, hidden_size=64, output_size=20, seq_length=120)
+    for x_batch, y_batch in train_loader:
+        output = model(x_batch)
+        print("output", output.shape)
+        break
