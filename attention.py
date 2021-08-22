@@ -38,6 +38,8 @@ class Decoder(nn.Module):
         self.hidden_size = hidden_size
         
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
+
+        self.out = nn.Linear(hidden_size, output_size)
         
     def forward(self, x, s_i_1):
         """
@@ -47,6 +49,8 @@ class Decoder(nn.Module):
         """
         
         y_i, s_i = self.gru(x, s_i_1)
+
+        y_i = self.out(y_i)
                 
         return y_i, s_i
     
@@ -59,15 +63,17 @@ class Attention_Net(nn.Module):
     input x = (B,L,P)
     output y = (B,m)
     """
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_size, output_size, seq_len):
         super(Attention_Net, self).__init__()
         self.hidden_size = hidden_size
+        self.seq_len = seq_len
+
         self.encoder = Encoder(input_size, hidden_size)
-        self.decoder = Decoder(hidden_size, output_size)
+        self.decoder = Decoder(hidden_size, 1)
         
         self.attn = nn.Linear(hidden_size * 2, 1)
         
-        # self.out = nn.Linear()
+        self.out = nn.Linear(seq_len, output_size)
                   
     def forward(self, x):
         seq_len = x.shape[1]
@@ -76,7 +82,7 @@ class Attention_Net(nn.Module):
         # h (B,L,hidden_size)
         # last_hidden (1,B,hidden_size)
         
-        y = torch.empty((batch_size, seq_len, self.hidden_size))
+        y = torch.empty((batch_size, seq_len))
         
         s_i_1 = last_hidden # s_0 is the hidden state of the last hidden encoder
         for i in range(seq_len):
@@ -105,10 +111,12 @@ class Attention_Net(nn.Module):
 
             y_i, s_i = self.decoder(c_i, s_i_1)
             # print("y_i", y_i.shape)
-            y[:,i,:] = y_i[:,0,:]
+            y[:,i] = y_i[:,0,0]
             
             # Update s_i_1
             s_i_1 = s_i
+
+        y = self.out(y)
             
             
         return y
@@ -121,7 +129,7 @@ train_set_len = X_train.shape[0]
 train = TensorDataset(X_train, y_train)
 train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)
 
-model = Attention_Net(input_size=5, hidden_size=64, output_size=20)
+model = Attention_Net(input_size=5, hidden_size=64, output_size=20, seq_len=120)
 for x_batch, y_batch in train_loader:
     output = model(x_batch)
     print("output", output.shape)
