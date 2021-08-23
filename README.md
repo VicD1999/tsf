@@ -6,15 +6,13 @@
 
 # TO DO
 
-- Data From WF 1 and 2
-- Add data forecast OK
-- Log the time series to avoid skew distribution OK (no change)
-- GRU model OK
-- BRC/ nBRC model OK
-- Make main.py to train the model OK
-- checkpoint / save model OK 
 - Train model (LSTM OK)
+- Classic Encoder => Decoder RNN architecture
+- RNN with attention (Nearby OK)
 - Transformers
+- Initialization of the weights of the RNNs
+- Teacher training
+- Make a toy example to test the architectures
 
 ## Command on vega
 
