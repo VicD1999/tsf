@@ -89,8 +89,8 @@ if __name__ == '__main__':
         train = TensorDataset(X_train, y_train)
         val = TensorDataset(X_valid, y_valid)
 
-        train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(val, batch_size=batch_size, shuffle=True, drop_last=True)
 
         # Model Parameters
         input_size = X_train.shape[2] # number of expected features for input x
