@@ -4,6 +4,30 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 
+
+class simple_rnn(nn.Module):
+    """
+    input x = (B,L,P)
+    output y = (B,m)
+    """
+    def __init__(self, input_size, hidden_size, output_size, seq_length):
+        super(simple_rnn, self).__init__()
+        self.hidden_size = hidden_size
+
+        self.encoder = nn.GRU(input_size, hidden_size, num_layers=1, batch_first=True)
+        torch.nn.init.orthogonal_(self.encoder.weight_hh_l0)
+        torch.nn.init.orthogonal_(self.encoder.weight_ih_l0)
+        
+        self.decoder = nn.Linear(hidden_size, output_size)
+
+                  
+    def forward(self, x):
+        y, h = self.encoder(x)
+        
+        y = self.decoder(y[:,-1,:])
+            
+        return y
+
 class LSTM(nn.Module):
 
     def __init__(self, input_size, hidden_size, seq_length, output_size, num_layers=1):

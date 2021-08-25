@@ -53,7 +53,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    rnns = {"LSTM":LSTM, "GRU":GRU, "BRC":BRC, "nBRC":nBRC, "attn":Attention_Net}
+    rnns = {"LSTM":LSTM, "GRU":GRU, "BRC":BRC, "nBRC":nBRC, 
+            "attn":Attention_Net, "simple_rnn":simple_rnn}
 
     dataset_creation = args.dataset_creation
     model_training = args.training
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     if model_training:
         device = torch.device('cpu')
         batch_size = args.batch_size
-        checkpoint = 2
+        checkpoint = 1
         
         # Data Loading
         if not data:
