@@ -1,5 +1,5 @@
 #!/bin/bash
 
-zip archive.zip main.py model.py util.py
+zip archive.zip main.py model.py util.py attention.py
 
 scp -i ~/.ssh/vega archive.zip victor@vega.montefiore.ulg.ac.be:/home/victor/tsf
