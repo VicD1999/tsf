@@ -90,8 +90,8 @@ if __name__ == '__main__':
         train = TensorDataset(X_train, y_train)
         val = TensorDataset(X_valid, y_valid)
 
-        train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, drop_last=True)
-        val_loader = DataLoader(val, batch_size=batch_size, shuffle=True, drop_last=True)
+        train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, drop_last=False)
+        val_loader = DataLoader(val, batch_size=batch_size, shuffle=True, drop_last=False)
 
         # Model Parameters
         input_size = X_train.shape[2] # number of expected features for input x
@@ -249,7 +249,8 @@ if __name__ == '__main__':
 
         val_loader = DataLoader(val, batch_size=batch_size, shuffle=True)
 
-        model_names = [ "LSTM_64_7" ,"GRU_64_11", "BRC_64_9", "nBRC_64_5"]
+        model_names = [ "LSTM_64_7" ,"GRU_64_11", "BRC_64_9", 
+                        "nBRC_64_5", "attn_64_5"]
 
         for rnn, model_name in zip(rnns, model_names):
             model = rnns[rnn](input_size=input_size, hidden_size=args.hidden_size, 
@@ -281,8 +282,9 @@ if __name__ == '__main__':
             # Get the standard deviation of all the MSE
             std_loss_valid = torch.std(losses_valid, dim=0)
 
+            print(model_name)
             print(f"mean +- std: {mean_loss_valid} +- {std_loss_valid}")
-            break
+            # break
                 
         """
         plt.figure(figsize=(7,5))

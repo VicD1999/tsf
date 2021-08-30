@@ -24,8 +24,11 @@ class Encoder(nn.Module):
         
         return output, hidden
 
-    def init_hidden(self):
-        return torch.zeros(1, 32, self.hidden_size)
+    def init_hidden(self, x):
+        """
+        x tensor of shape (B,L,num_features)
+        """
+        return torch.zeros(1, x.shape[0], self.hidden_size)
 
 
 class Decoder(nn.Module):
@@ -54,8 +57,11 @@ class Decoder(nn.Module):
                 
         return y_i, s_i
     
-    def init_hidden(self):
-        return torch.zeros(1, 32, self.hidden_size)
+    def init_hidden(self, x):
+        """
+        x tensor of shape (B,L,num_features)
+        """
+        return torch.zeros(1, x.shape, self.hidden_size)
 
 
 class Attention_Net(nn.Module):
@@ -78,7 +84,7 @@ class Attention_Net(nn.Module):
     def forward(self, x):
         seq_length = x.shape[1]
         batch_size = x.shape[0]
-        h, last_hidden = self.encoder(x, self.encoder.init_hidden())
+        h, last_hidden = self.encoder(x, self.encoder.init_hidden(x))
         # h (B,L,hidden_size)
         # last_hidden (1,B,hidden_size)
         
