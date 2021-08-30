@@ -7,10 +7,10 @@
 # TO DO
 
 - Train model (LSTM OK)
-- Classic Encoder => Decoder RNN architecture
-- RNN with attention (Nearby OK)
-- Transformers
-- Initialization of the weights of the RNNs
+- Classic Encoder => Decoder RNN architecture (OK)
+- RNN with attention (Nearby OK: missing parallelization of the attn mechanism to speed up the training)
+- Transformers (In progress)
+- Initialization of the weights of the RNNs (Test)
 - Teacher training
 - Make a toy example to test the architectures
 
