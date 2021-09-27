@@ -4,12 +4,13 @@ import torch.nn as nn
 
 class Transformer(nn.Module):
     # d_model : number of features
-    def __init__(self,feature_size=5,num_layers=3,dropout=0):
+    def __init__(self,feature_size=5,num_layers=3,seq_length=120, output_size=60 ,dropout=0):
         super(Transformer, self).__init__()
 
         self.encoder_layer = nn.TransformerEncoderLayer(d_model=feature_size, nhead=feature_size, dropout=dropout, batch_first=True)
         self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)        
         self.decoder = nn.Linear(feature_size,1)
+        self.out = nn.Linear(seq_length, output_size)
         self.init_weights()
 
     def init_weights(self):
@@ -31,8 +32,11 @@ class Transformer(nn.Module):
         print("mask", mask.shape)
         print("src", src.shape)
         output = self.transformer_encoder(src, mask)
-        print("output", output.shape)
+        print("Trasnf encoder output", output.shape)
         output = self.decoder(output)
+        print("Decoder output", output.shape)
+        output = self.out(output[:,:,0])
+        print("out output", output.shape)
         return output
 
 if __name__ == "__main__":
@@ -41,3 +45,4 @@ if __name__ == "__main__":
 	print("x", x.shape)
 	output = model(x)
 	print("output", output.shape)
+    
