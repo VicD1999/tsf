@@ -1,18 +1,26 @@
-# Test to do
+# TO IMPLEMENT
 
-- Train an RNN for the 1st one and apply this RNN on the 2nd one and see the performances (Kind of transfer learning if we re-train on the 2nd one)
-
-
-
-# TO DO
-
-- Train model (LSTM OK)
-- Classic Encoder => Decoder RNN architecture (OK)
 - RNN with attention (Nearby OK: missing parallelization of the attn mechanism to speed up the training)
 - Transformers (In progress)
 - Initialization of the weights of the RNNs (Test)
 - Teacher training
 - Make a toy example to test the architectures
+
+
+
+# TO READ
+
+- Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation Badhannau
+- Deep Transformer Models for Time Series Forecasting: The Influenza Prevalence Case
+- Professor Forcing: A New Algorithm for Training Recurrent Networks, Goyal
+
+# IDEAS
+
+- Train an RNN for the 1st one and apply this RNN on the 2nd one and see the performances (Kind of transfer learning if we re-train on the 2nd one) 
+
+
+
+
 
 ## Command on vega
 
