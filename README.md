@@ -17,6 +17,7 @@
 # IDEAS
 
 - Train an RNN for the 1st one and apply this RNN on the 2nd one and see the performances (Kind of transfer learning if we re-train on the 2nd one) 
+- Use Prophet https://facebook.github.io/prophet/ to make forecasting
 
 
 
