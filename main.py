@@ -1,18 +1,17 @@
 # Author: Victor Dachet
 
-from scipy import stats
-import numpy as np
 import pandas as pd
 import argparse
 import time
 import os
 
 import util as u
-from model import *
+from model import LSTM, GRU, BRC, nBRC, simple_rnn
 from attention import Attention_Net
 
 from torch.utils.data import TensorDataset, DataLoader
 import torch.nn.functional as F
+import torch
 
 
 if __name__ == '__main__':
@@ -61,7 +60,7 @@ if __name__ == '__main__':
     data = None
 
     if dataset_creation:
-        u.create_dataset(vervose=False)
+        u.create_dataset(vervose=False, normalize=False)
         df = pd.read_csv("data/dataset.csv")
         # data = u.get_random_split_dataset(df, window_size=args.window_size, 
         #                      forecast_size=args.forecast_size, add_forecast=True)

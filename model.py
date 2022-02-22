@@ -18,13 +18,21 @@ class simple_rnn(nn.Module):
         torch.nn.init.orthogonal_(self.encoder.weight_hh_l0)
         torch.nn.init.orthogonal_(self.encoder.weight_ih_l0)
         
+        # self.f = nn.Tanh()
+
         self.decoder = nn.Linear(hidden_size, output_size)
+
+        
 
                   
     def forward(self, x):
         y, h = self.encoder(x)
+
+        # y[:,-1,:] = self.f(y[:,-1,:])
         
         y = self.decoder(y[:,-1,:])
+
+        
             
         return y
 

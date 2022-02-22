@@ -16,14 +16,25 @@ paths_ores = ["data/ORES/export_eolien_2021-02-01.csv",
               "data/ORES/export_eolien_2021-04-01.csv",
               "data/ORES/export_eolien_2021-05-01.csv",
               "data/ORES/export_eolien_2021-06-01.csv",
-              "data/ORES/export_eolien_2021-07-01.csv"]
+              "data/ORES/export_eolien_2021-07-01.csv",
+              "data/ORES/export_eolien_2021-08-01.csv",
+              "data/ORES/export_eolien_2021-09-01.csv",
+              "data/ORES/export_eolien_2021-10-01.csv",
+              "data/ORES/export_eolien_2021-11-01.csv",
+              "data/ORES/export_eolien_2021-12-01.csv",
+              "data/ORES/export_eolien_2022-01-01.csv",
+              "data/ORES/export_eolien_2021-02-01.csv"]
 
-paths_mar = ["data/MAR/concat_20210118_20210131.nc", # 02
-             "data/MAR/concat_20210201_20210228.nc", # 03
-             "data/MAR/concat_20210228_20210331.nc", # 04
-             "data/MAR/concat_20210331_20210430.nc", # 05
-             "data/MAR/concat_20210430_20210531.nc", # 06
-             "data/MAR/concat_20210531_20210630.nc"] # 07
+paths_mar = ["data/MAR/concat.nc"]
+
+"""
+["data/MAR/concat_20210118_20210131.nc", # 02
+ "data/MAR/concat_20210201_20210228.nc", # 03
+ "data/MAR/concat_20210228_20210331.nc", # 04
+ "data/MAR/concat_20210331_20210430.nc", # 05
+ "data/MAR/concat_20210430_20210531.nc", # 06
+ "data/MAR/concat_20210531_20210630.nc"] # 07
+"""
 
 def get_wind_time(netCDF_file_path, location):
     """
@@ -243,7 +254,7 @@ def create_dataframe(path_ores_data, path_mar_data):
 
     return df
 
-def create_dataset(vervose=True):
+def create_dataset(vervose=True, normalize=True):
     """
     Routine to create a dataset from netcdf and ORES files
 
@@ -284,8 +295,10 @@ def create_dataset(vervose=True):
         except:
             print("Error with ", paths_ores, path_mar)
 
-
-    dataset = pd.concat(frames)
+    if len(frames) > 1:
+        dataset = pd.concat(frames)
+    else:
+        dataset = frames[0]
 
     dataset = dataset.drop_duplicates(subset = "time")
 
@@ -302,21 +315,25 @@ def create_dataset(vervose=True):
     dataset["cos_" + "time"] = [f_cos(ele) for ele in vector_seconds]
 
     # Normalizing Data
-    for i in range(3):
-        mean_ws = dataset['windSpeedNorm{}'.format(i)].mean()
-        std_ws = dataset['windSpeedNorm{}'.format(i)].std()
+    if normalize:
+        for i in range(3):
+            mean_ws = dataset['windSpeedNorm{}'.format(i)].mean()
+            std_ws = dataset['windSpeedNorm{}'.format(i)].std()
 
-        dataset['windSpeedNorm{}'.format(i)] = (dataset['windSpeedNorm{}'.format(i)] - \
-                                        mean_ws) / std_ws
+            dataset['windSpeedNorm{}'.format(i)] = (dataset['windSpeedNorm{}'.format(i)] - \
+                                            mean_ws) / std_ws
 
-                
-        dataset['prod_wf{}'.format(i)] = (dataset['prod_wf{}'.format(i)] - \
-            dataset['prod_wf{}'.format(i)].mean()) / dataset['prod_wf{}'.format(i)].std()
+                    
+            dataset['prod_wf{}'.format(i)] = (dataset['prod_wf{}'.format(i)] - \
+                dataset['prod_wf{}'.format(i)].mean()) / dataset['prod_wf{}'.format(i)].std()
 
-
-    # Save dataset
-    dataset.to_csv("data/dataset.csv", index=False)
-    print("Dataset saved")
+        # Save dataset
+        dataset.to_csv("data/dataset.csv", index=False)
+        print("Dataset saved")
+    else:
+        # Save dataset
+        dataset.to_csv("data/dataset_nn.csv", index=False)
+        print("Dataset saved")
 
 
 def feature_label_split(df, window_size, forecast_size, 
@@ -567,5 +584,8 @@ def plot_results(model, X, y, save_path=None):
     plt.legend()
     plt.savefig(save_path, dpi=200)
     plt.show()
+
+def pinball_loss(d, f, alpha):
+    return max(alpha*(d-f), (1-alpha)*(f-d))
 
 
