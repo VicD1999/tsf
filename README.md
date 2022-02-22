@@ -31,3 +31,13 @@ nohup python3 main.py -c_t model/LSTM/10.model -t --rnn LSTM > file.out 2> err.l
 
 
 
+# Environments
+
+Due to problems of package installations you have to use a special environment for darts.
+
+`conda activate tsf`
+
+`conda activate darts_env`
+
+
+
