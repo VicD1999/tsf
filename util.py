@@ -128,6 +128,30 @@ def convert_date_to_min(date):
         
     return elapsed_minutes
 
+def convert_date_to_hour(date):
+    """
+    Method to convert a given number of minutes elapsed from a
+    given start_time date into a datetime object
+    e.g.:
+    convert_date_to_min(date='2016-09-01 00:00:00')
+    1060138080.0
+    
+    args:
+    -----
+        date: String 
+                    ISO format date time e.g. "2016-09-01 00:00:00"
+
+    return:
+    -------
+        elapsed_minutes: int
+                         number of hours elapsed from datetime.datetime.min
+    """
+    min_date = datetime.datetime.min
+    elapsed_minutes = (datetime.datetime.fromisoformat(date) \
+                      - min_date).total_seconds() / 60.0*60.0
+        
+    return elapsed_minutes
+
 def convert_hours_to_min(date):
     """
     Method to convert a given number of minutes elapsed from a
