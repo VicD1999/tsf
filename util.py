@@ -23,7 +23,7 @@ paths_ores = ["data/ORES/export_eolien_2021-02-01.csv",
               "data/ORES/export_eolien_2021-11-01.csv",
               "data/ORES/export_eolien_2021-12-01.csv",
               "data/ORES/export_eolien_2022-01-01.csv",
-              "data/ORES/export_eolien_2021-02-01.csv"]
+              "data/ORES/export_eolien_2022-02-01.csv"]
 
 paths_mar = ["data/MAR/concat.nc"]
 
