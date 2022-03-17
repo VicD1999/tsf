@@ -10,7 +10,8 @@ wind_time_serie = False
 power_time_serie = False
 interpolation = False
 interp_histo = False
-dataset = True
+dataset = False
+output15 = True
 
 locations = [(2,31,61), (2,17,27), (2,23,39)] # (k,j,i)
  
@@ -342,4 +343,23 @@ if dataset:
         df["MIN"]       = df["ISO"].map(lambda x: x.minute)
         df.to_csv(f"data/dataset{i}.csv", index=False)
     
+if output15:
+    for i in range(3):
+        df = pd.read_csv(f"data/dataset{i}.csv")
+        print(len(df))
+        resolution = 15
+        # df.columns
+        test = df[['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
+              'histoTemperature0_80', 'histoWindSpeedNorm0_100',
+              'histoWindSpeedAngle0_100', 'histoTemperature0_100',
+              'windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
+              'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100', 'prod_wf0']].rolling(window=resolution, min_periods=None, center=False, 
+               win_type=None, on=None, axis=0, 
+               closed=None, method='single').mean()
+        # ls is a mask for 15min lines
+        ls = [ bool(df["MIN"].iloc[i]%resolution == 0) for i in range(len(test)) ]
+        ls[0] = False
+        new_df = pd.concat([test.iloc[ls], df[["time", "YEAR", "DAYOFYEAR", "HOUR", "MIN"]].iloc[ls]], axis=1).reset_index()
+
+        new_df.to_csv(f"data/output15/dataset{i}_15.csv", index=False)
 
