@@ -491,7 +491,7 @@ def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, 
     forecast = np.load(f"data/output15/X{farm}_big_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
 
     histo = histo.reshape((histo.shape[0], histo.shape[1]*histo.shape[2]))
-    forecast =  forecast[:,:day,:].reshape(forecast.shape[0], day*forecast.shape[2])
+    forecast =  forecast[:,:gap+day,:].reshape(forecast.shape[0], (gap+day)*forecast.shape[2])
 
     X = np.concatenate([histo, forecast], axis=1)
 
