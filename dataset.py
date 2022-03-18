@@ -4,6 +4,7 @@
 # from scipy.io import netcdf
 import os
 import glob
+from sklearn.model_selection import TimeSeriesSplit
 from util import *
 
 wind_time_serie = False
@@ -11,7 +12,8 @@ power_time_serie = False
 interpolation = False
 interp_histo = False
 dataset = False
-output15 = True
+output15 = False
+create_sklearn_datasets = True
 
 locations = [(2,31,61), (2,17,27), (2,23,39)] # (k,j,i)
  
@@ -363,3 +365,215 @@ if output15:
 
         new_df.to_csv(f"data/output15/dataset{i}_15.csv", index=False)
 
+
+def small_dataset(new_df, path_save_X=None, path_save_y=None):
+    farm = 0 # AFTER: for farm in range(3):
+    num_samples= len(new_df)//(96)
+
+    i = 0 # for regressor t+1 only 6 forecast
+          # for regressor t+n 6*n forecasts
+
+    X = np.empty((num_samples, 96*6+6))
+
+    y = np.empty((num_samples))
+
+    for t in range(num_samples):
+
+        histo = new_df[['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
+                          'histoTemperature0_80', 'histoWindSpeedNorm0_100',
+                          'histoWindSpeedAngle0_100', 'histoTemperature0_100',]].iloc[t*96:(t+1)*96].values.reshape((96*6))
+        forecast = new_df[['windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
+                           'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100']].iloc[(t+1)*96:96*(t+1)+1].values.reshape((6))
+        
+        concat = np.concatenate([histo,forecast], axis=0)
+        # print("concat", concat.shape)
+        X[t,:] = concat
+        y[t] = new_df["prod_wf0"].iloc[(t+1)*96:96*(t+1)+1]
+
+        # print("histo", histo.shape, type(histo))
+        # print("forecast", forecast.shape, type(forecast))
+
+    print("X", X.shape)
+    print("y", y.shape)
+
+    if path_save_X:
+        np.save(path_save_X, X)
+    if path_save_y:
+        np.save(path_save_y, y)
+
+    return X, y
+
+def big_dataset(new_df, path_save_X=None, path_save_y=None):
+    """
+    Creates a big dataset at each 96 time steps create
+
+    args:
+    -----
+        new_df: Pandas DataFrame with 
+                'histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
+                'histoTemperature0_80', 'histoWindSpeedNorm0_100',
+                'histoWindSpeedAngle0_100', 'histoTemperature0_100'
+                'windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
+                'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100'
+                as columns
+
+        save: Boolean wheter or not saving the output into a file
+
+    return:
+    -------
+        X: numpy array of size (len(new_df)-97, 
+                    96 quarters * 6 historic features + 6 forecasting features)
+        y: numpy array of size (len(new_df)-97)
+    """
+    farm = 0 # AFTER: for farm in range(3):
+    num_samples= len(new_df)-2*96
+
+    # i = day # for regressor t+1 only 6 forecast
+          # for regressor t+n 6*n forecasts
+    i=95
+
+    histo_features = ['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
+                      'histoTemperature0_80', 'histoWindSpeedNorm0_100',
+                      'histoWindSpeedAngle0_100', 'histoTemperature0_100']
+    history_size = 96
+    num_histo_features = len(histo_features)
+
+    forecast_features = ['windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
+                         'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100']
+    num_forecast_features = len(forecast_features)
+    forecast_horizon = 96
+
+    # X = np.empty((num_samples, 96*6 + 6*(i+1) ))
+
+
+    X_histo = np.empty((num_samples, history_size, num_histo_features))
+    X_forecast = np.empty((num_samples, forecast_horizon, num_forecast_features))
+
+    y = np.empty((num_samples, forecast_horizon))
+
+    for t in range(num_samples):
+        if not t % 1000:
+            print(f"{t} over {num_samples}")
+        histo = new_df[histo_features].iloc[t:history_size+t]# .values.reshape((96*6))
+
+        X_histo[t,:,:] = histo
+
+        # for i in range(95):
+        
+        # print("Save forecast", i)
+        forecast = new_df[forecast_features].iloc[history_size+t:history_size+t+1+(i*1)].values # .reshape((6*(i+1)))
+
+        X_forecast[t,:,:] = forecast
+
+        y[t,:] = new_df["prod_wf0"].iloc[history_size+t:history_size+t+1+(i*1)]
+
+            # concat = np.concatenate([histo,forecast], axis=0)
+            # print("concat", concat.shape)
+            # X[t,:] = concat
+
+        verbose = True
+        if verbose:
+            print("X histo", new_df.iloc[t:history_size+t])
+            print("X forecast", new_df.iloc[history_size+t:history_size+t+1+(i*1)])
+            print("y", new_df.iloc[history_size+t:history_size+t+1+(i*1)])
+
+        # print("histo", histo.shape, type(histo))
+        # print("forecast", forecast.shape, type(forecast))
+    if path_save_X:
+            np.save(f"data/output15/X{farm}_big_test_histo_{history_size}.npy" , X_histo)
+    if path_save_X:
+            np.save(f"data/output15/X{farm}_big_test_forecast_{forecast_horizon}.npy" , X_forecast)
+    if path_save_y:
+            np.save(f"data/output15/y{farm}_big_test_{forecast_horizon}.npy", y)
+
+    print("X_histo", X_histo.shape)
+    print("X_forecast", X_forecast.shape)
+    print("y", y.shape)
+
+
+    return X_histo, X_forecast, y
+
+
+def split_df(df, split=0.9):
+    """
+    Split into training and test set 
+
+    args:
+    -----
+        df: Pandas DataFrame with 
+        split: float between 0.0 and 1.0
+               Portion to allocate to the training set
+    return:
+    -------
+        df_train: 
+        df_valid:
+        df_test: 
+    """
+    split_index0 = int(len(df) * split)
+
+    split_index1 = split_index0 + (len(df) - split_index0) // 2
+
+    df_train = df.iloc[:split_index0]
+    df_valid = df.iloc[split_index0:split_index1]
+    df_test = df.iloc[split_index1:]
+
+    return df_train, df_valid, df_test
+
+
+if create_sklearn_datasets:
+    big = True
+    small = False
+
+    farm = 0
+    new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
+
+    df_train, df_valid, df_test = split_df(new_df, split=0.8)
+
+    if small:
+        # HERE It is a small dataset of only 385 days
+        small_dataset(new_df=df_train, 
+                    path_save_X=f"data/output15/X{farm}_small_train.npy",
+                    path_save_y=f"data/output15/y{farm}_small_train.npy")
+
+        small_dataset(new_df=df_valid, 
+                    path_save_X=f"data/output15/X{farm}_small_valid.npy",
+                    path_save_y=f"data/output15/y{farm}_small_valid.npy")
+
+        small_dataset(new_df=df_test, 
+                    path_save_X=f"data/output15/X{farm}_small_test.npy",
+                    path_save_y=f"data/output15/y{farm}_small_test.npy")
+
+    if big:
+        # HERE It is a BIG dataset of 
+        # for day in range(96):
+        """
+        big_dataset(new_df=df_train, 
+                    day=day, 
+                    path_save_X=f"data/output15/X{farm}_big_train_{day}.npy",
+                    path_save_y=f"data/output15/y{farm}_big_train_{day}.npy")
+
+        big_dataset(new_df=df_valid, 
+                    day=day, 
+                    path_save_X=f"data/output15/X{farm}_big_valid_{day}.npy",
+                    path_save_y=f"data/output15/y{farm}_big_valid_{day}.npy")
+        """
+
+        big_dataset(new_df=df_test, 
+                    path_save_X=f"data.npy",
+                    path_save_y=f"data.npy")
+
+        # LOAD day 1
+        history_size=forecast_horizon=96
+        farm = 0
+        histo = np.load(f"data/output15/X{farm}_big_test_histo_{history_size}.npy")
+        forecast = np.load(f"data/output15/X{farm}_big_test_forecast_{forecast_horizon}.npy")
+        y = np.load(f"data/output15/y{farm}_big_test_{forecast_horizon}.npy")
+
+        # concat = np.concatenate([histo,forecast], axis=0)
+
+        
+
+        print("histo", histo.shape)
+        print("forecast", forecast.shape)
+        # print("concat", concat.shape)
+        print("y", y.shape)
