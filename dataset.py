@@ -403,9 +403,10 @@ def small_dataset(new_df, path_save_X=None, path_save_y=None):
 
     return X, y
 
-def big_dataset(new_df, path_save_X=None, path_save_y=None):
+def big_dataset(new_df, type_data, gap=0, farm=0):
     """
-    Creates a big dataset at each 96 time steps create
+    Creates a big dataset at each 96 time steps with a forecasting horizon of 
+    96 steps.
 
     args:
     -----
@@ -415,22 +416,18 @@ def big_dataset(new_df, path_save_X=None, path_save_y=None):
                 'histoWindSpeedAngle0_100', 'histoTemperature0_100'
                 'windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
                 'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100'
+                'prod_wf0'
                 as columns
-
-        save: Boolean wheter or not saving the output into a file
+        type_data: string either "train", "valid" or "test"
+        farm: integer in {0,1,2}
 
     return:
     -------
-        X: numpy array of size (len(new_df)-97, 
-                    96 quarters * 6 historic features + 6 forecasting features)
-        y: numpy array of size (len(new_df)-97)
-    """
-    farm = 0 # AFTER: for farm in range(3):
-    num_samples= len(new_df)-2*96
-
-    # i = day # for regressor t+1 only 6 forecast
-          # for regressor t+n 6*n forecasts
-    i=95
+        X_histo: numpy array of size (num_samples, history_size, num_histo_features)
+        X_forecast: numpy array of size (num_samples, forecast_horizon, num_forecast_features)
+        y: numpy array of size (num_samples, forecast_horizon)
+    """    
+    verbose = False
 
     histo_features = ['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
                       'histoTemperature0_80', 'histoWindSpeedNorm0_100',
@@ -443,11 +440,10 @@ def big_dataset(new_df, path_save_X=None, path_save_y=None):
     num_forecast_features = len(forecast_features)
     forecast_horizon = 96
 
-    # X = np.empty((num_samples, 96*6 + 6*(i+1) ))
-
+    num_samples= len(new_df) - history_size - forecast_horizon - gap
 
     X_histo = np.empty((num_samples, history_size, num_histo_features))
-    X_forecast = np.empty((num_samples, forecast_horizon, num_forecast_features))
+    X_forecast = np.empty((num_samples, forecast_horizon+gap, num_forecast_features))
 
     y = np.empty((num_samples, forecast_horizon))
 
@@ -455,43 +451,72 @@ def big_dataset(new_df, path_save_X=None, path_save_y=None):
         if not t % 1000:
             print(f"{t} over {num_samples}")
         histo = new_df[histo_features].iloc[t:history_size+t]# .values.reshape((96*6))
-
         X_histo[t,:,:] = histo
-
-        # for i in range(95):
-        
-        # print("Save forecast", i)
-        forecast = new_df[forecast_features].iloc[history_size+t:history_size+t+1+(i*1)].values # .reshape((6*(i+1)))
-
+        forecast = new_df[forecast_features].iloc[history_size+t:history_size+gap+t+forecast_horizon].values # .reshape((6*(i+1)))
         X_forecast[t,:,:] = forecast
 
-        y[t,:] = new_df["prod_wf0"].iloc[history_size+t:history_size+t+1+(i*1)]
+        y[t,:] = new_df["prod_wf0"].iloc[history_size+gap+t:history_size+gap+t+forecast_horizon]
 
-            # concat = np.concatenate([histo,forecast], axis=0)
-            # print("concat", concat.shape)
-            # X[t,:] = concat
-
-        verbose = True
         if verbose:
             print("X histo", new_df.iloc[t:history_size+t])
-            print("X forecast", new_df.iloc[history_size+t:history_size+t+1+(i*1)])
-            print("y", new_df.iloc[history_size+t:history_size+t+1+(i*1)])
+            print("X forecast", new_df.iloc[history_size+t:history_size+gap+t+forecast_horizon])
+            print("y", new_df.iloc[history_size+gap+t:history_size+gap+t+forecast_horizon])
+            # print("histo", histo.shape, type(histo))
+            # print("forecast", forecast.shape, type(forecast))
+    
+    np.save(f"data/output15/X{farm}_big_{type_data}_histo_{history_size}_gap_{gap}.npy" , X_histo)
+    np.save(f"data/output15/X{farm}_big_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy" , X_forecast)
+    np.save(f"data/output15/y{farm}_big_{type_data}_{forecast_horizon}_gap_{gap}.npy", y)
+    
 
-        # print("histo", histo.shape, type(histo))
-        # print("forecast", forecast.shape, type(forecast))
-    if path_save_X:
-            np.save(f"data/output15/X{farm}_big_test_histo_{history_size}.npy" , X_histo)
-    if path_save_X:
-            np.save(f"data/output15/X{farm}_big_test_forecast_{forecast_horizon}.npy" , X_forecast)
-    if path_save_y:
-            np.save(f"data/output15/y{farm}_big_test_{forecast_horizon}.npy", y)
-
-    print("X_histo", X_histo.shape)
-    print("X_forecast", X_forecast.shape)
-    print("y", y.shape)
+    if verbose:
+        print("X_histo", X_histo.shape)
+        print("X_forecast", X_forecast.shape)
+        print("y", y.shape)
 
 
     return X_histo, X_forecast, y
+
+def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96):
+    """
+    args:
+        day: integer between 1 and 96
+
+    returns:
+    --------
+        X: features matrix with history and forecast variable
+        y: target vector for day day
+    """
+    histo = np.load(f"data/output15/X{farm}_big_{type_data}_histo_{history_size}_gap_{gap}.npy")
+    forecast = np.load(f"data/output15/X{farm}_big_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
+
+    histo = histo.reshape((histo.shape[0], histo.shape[1]*histo.shape[2]))
+    forecast =  forecast[:,:day,:].reshape(forecast.shape[0], day*forecast.shape[2])
+
+    X = np.concatenate([histo, forecast], axis=1)
+
+    y = np.load(f"data/output15/y{farm}_big_{type_data}_{forecast_horizon}_gap_{gap}.npy")
+
+    y = y[:,day-1]
+
+    return X, y
+
+def get_dataset_rnn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96):
+    histo = np.load(f"data/output15/X{farm}_big_{type_data}_histo_{history_size}_gap_{gap}.npy")
+    forecast = np.load(f"data/output15/X{farm}_big_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
+    y = np.load(f"data/output15/y{farm}_big_{type_data}_{forecast_horizon}_gap_{gap}.npy")
+    
+    forecast = forecast[:,:gap+day,:]
+    print("histo", histo.shape)
+    print("forecast", forecast.shape)
+    
+
+    X = np.concatenate([histo, forecast], axis=1)
+    
+    return X, y
+
+
+
 
 
 def split_df(df, split=0.9):
@@ -521,13 +546,11 @@ def split_df(df, split=0.9):
 
 
 if create_sklearn_datasets:
-    big = True
+    big = False
     small = False
 
     farm = 0
-    new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
-
-    df_train, df_valid, df_test = split_df(new_df, split=0.8)
+    
 
     if small:
         # HERE It is a small dataset of only 385 days
@@ -544,36 +567,21 @@ if create_sklearn_datasets:
                     path_save_y=f"data/output15/y{farm}_small_test.npy")
 
     if big:
-        # HERE It is a BIG dataset of 
-        # for day in range(96):
-        """
-        big_dataset(new_df=df_train, 
-                    day=day, 
-                    path_save_X=f"data/output15/X{farm}_big_train_{day}.npy",
-                    path_save_y=f"data/output15/y{farm}_big_train_{day}.npy")
+        for farm in range(3):
+            print("Create dataset of farm", farm)
+            new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
+            df_train, df_valid, df_test = split_df(new_df, split=0.8)
 
-        big_dataset(new_df=df_valid, 
-                    day=day, 
-                    path_save_X=f"data/output15/X{farm}_big_valid_{day}.npy",
-                    path_save_y=f"data/output15/y{farm}_big_valid_{day}.npy")
-        """
+            big_dataset(df_train, type_data="train", gap=48, farm=farm)
+            big_dataset(df_valid, type_data="valid", gap=48, farm=farm)
+            big_dataset(df_test, type_data="test", gap=48, farm=farm)
 
-        big_dataset(new_df=df_test, 
-                    path_save_X=f"data.npy",
-                    path_save_y=f"data.npy")
+    X, y = get_dataset_sklearn(day=7, farm=0, type_data="train", gap=48, history_size=96, forecast_horizon=96)
 
-        # LOAD day 1
-        history_size=forecast_horizon=96
-        farm = 0
-        histo = np.load(f"data/output15/X{farm}_big_test_histo_{history_size}.npy")
-        forecast = np.load(f"data/output15/X{farm}_big_test_forecast_{forecast_horizon}.npy")
-        y = np.load(f"data/output15/y{farm}_big_test_{forecast_horizon}.npy")
+    print("X", X.shape)
+    print("y", y.shape)
 
-        # concat = np.concatenate([histo,forecast], axis=0)
+    X, y = get_dataset_rnn(day=7, farm=0, type_data="train", gap=48, history_size=96, forecast_horizon=96)
 
-        
-
-        print("histo", histo.shape)
-        print("forecast", forecast.shape)
-        # print("concat", concat.shape)
-        print("y", y.shape)
+    print("X", X.shape)
+    print("y", y.shape)
