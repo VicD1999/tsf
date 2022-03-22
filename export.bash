@@ -1,5 +1,5 @@
 #!/bin/bash
 
-zip archive.zip main.py model.py util.py attention.py
+zip archive.zip main.py model.py util.py attention.py randomForest.py gradient_boosting.py
 
-scp -i ~/.ssh/vega archive.zip victor@vega.montefiore.ulg.ac.be:/home/victor/tsf
+scp -i ~/.ssh/vegamissile archive.zip victor@vega.mont.priv:/home/victor/tsf
