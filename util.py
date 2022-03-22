@@ -662,8 +662,8 @@ def big_dataset(new_df, type_data, gap=0, farm=0):
 
     histo_features = ['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
                       'histoTemperature0_80', 'histoWindSpeedNorm0_100',
-                      'histoWindSpeedAngle0_100', 'histoTemperature0_100']# ,
-                      # f'prod_wf0']
+                      'histoWindSpeedAngle0_100', 'histoTemperature0_100',
+                      f'prod_wf0']
     history_size = 96
     num_histo_features = len(histo_features)
 
@@ -712,7 +712,7 @@ def big_dataset(new_df, type_data, gap=0, farm=0):
 def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96):
     """
     args:
-        day: integer between 1 and 96
+        day: integer between 0 and 95
 
     returns:
     --------
@@ -729,7 +729,7 @@ def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, 
 
     y = np.load(f"data/output15/y{farm}_big_{type_data}_{forecast_horizon}_gap_{gap}.npy")
 
-    y = y[:,day-1]
+    y = y[:,day]
 
     return X, y
 
