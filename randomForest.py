@@ -1,5 +1,6 @@
-from util import rmse, get_dataset_sklearn, plot_results, load_sklearn_model
+from util import rmse, get_dataset_sklearn, plot_results, load_sklearn_model, get_dataset_rnn, simple_plot
 from sklearn.ensemble import RandomForestRegressor
+import numpy as np
 import pickle
 
 import argparse
@@ -53,17 +54,61 @@ if __name__ == '__main__':
 
 
     if args.evaluation:
-        fh = 1
+        fh = 96
         day = 0
-        X, y = get_dataset_sklearn(day=day, farm=0, type_data="train", gap=48, 
+
+        X_train, y_train = get_dataset_sklearn(day=day, farm=0, type_data="train", gap=48, 
                                    history_size=96, forecast_horizon=96)
-        num_samples_train = X.shape[0]
+        X_valid, y_valid = get_dataset_sklearn(day=day, farm=0, type_data="valid", gap=48, 
+                                   history_size=96, forecast_horizon=96)
+
+        num_samples_train = X_train.shape[0]
+        num_samples_valid = X_valid.shape[0]
+
         Y_train = np.empty((num_samples_train, fh))
-        Y_valid = np.empty((num_samples_train, fh))
-        
-        rfr = load_sklearn_model(path_to_model=f"model/RandomForest/rfr_{day}.pkl")        
+        Y_valid = np.empty((num_samples_valid, fh))
 
-        Y.append(rfr.predict(X))
 
+        for day in range(fh):
+            print("day", day)
+            X_train, y_train = get_dataset_sklearn(day=day, farm=0, type_data="train", gap=48, 
+                                       history_size=96, forecast_horizon=96)
+            X_valid, y_valid = get_dataset_sklearn(day=day, farm=0, type_data="valid", gap=48, 
+                                       history_size=96, forecast_horizon=96)
+            
+            print("X_train", X_train.shape)
+            rfr = load_sklearn_model(path_to_model=f"model/RandomForest/rfr_{day}.pkl")        
+
+            Y_train[:,day] = rfr.predict(X_train)
+            Y_valid[:,day] = rfr.predict(X_valid)
+
+        _, y_train = get_dataset_rnn(day=95, farm=0, type_data="train", gap=48, 
+                                  history_size=96, forecast_horizon=96)
+        _, y_valid = get_dataset_rnn(day=95, farm=0, type_data="valid", gap=48, 
+                                  history_size=96, forecast_horizon=96)
+
+        losses_train = np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1)) # [rmse(Y_train[i,:],y_train[i,:fh]) for i in range(num_samples_train)] # np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1))
+        simple_plot(truth=y_train[0,:fh], forecast=Y_train[0], periods=fh, save="Images/random_forest_train.png")
+        print(f"rmse: {np.mean(losses_train):.2f} \pm {np.std(losses_train):.2f} \nrmse normalized {np.mean(losses_train)/30_000:.2f} \pm {np.std(losses_train)/30_000:.2f}")
+
+        losses_valid = np.sqrt(np.mean(np.square(Y_valid - y_valid[:,:fh]), axis=1)) # [rmse(Y_valid[i,:],y_valid[i,:fh]) for i in range(num_samples_valid)]# np.sqrt(np.mean(np.square(Y_valid - y_valid[:,:fh]), axis=1))
+        simple_plot(truth=y_valid[0,:fh], forecast=Y_valid[0], periods=fh, save="Images/random_forest_valid.png")
+        print(f"rmse: {np.mean(losses_valid):.2f} \pm {np.std(losses_valid):.2f} \nrmse normalized {np.mean(losses_valid)/30_000:.2f} \pm {np.std(losses_valid)/30_000:.2f}")
+
+        best = np.argmin(losses_train)
+        print(f"Best rmse: {losses_train[best]}")
+        simple_plot(truth=y_train[best,:fh], forecast=Y_train[best], periods=96, save="Images/random_forest_train_best.png")
+
+        worst = np.argmax(losses_train)
+        print(f"Worse rmse: {losses_train[worst]}")
+        simple_plot(truth=y_train[worst,:fh], forecast=Y_train[worst], periods=96, save="Images/random_forest_train_worst.png")
+
+        best = np.argmin(losses_valid)
+        print(f"Best rmse: {losses_valid[best]}")
+        simple_plot(truth=y_valid[best,:fh], forecast=Y_valid[best], periods=96, save="Images/random_forest_valid_best.png")
+
+        worst = np.argmax(losses_valid)
+        print(f"Worse rmse: {losses_valid[worst]}")
+        simple_plot(truth=y_valid[worst,:fh], forecast=Y_valid[worst], periods=96, save="Images/random_forest_valid_worst.png")
 
 
