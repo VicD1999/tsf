@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 
+from sktime.performance_metrics.forecasting import MeanSquaredError
+
 paths_ores = ["data/ORES/export_eolien_2021-02-01.csv",
               "data/ORES/export_eolien_2021-03-01.csv",
               "data/ORES/export_eolien_2021-04-01.csv",
@@ -579,7 +581,7 @@ def plot_curve_losses(df, save_path=None):
     plt.savefig(save_path, dpi=200)
     plt.show()
 
-def plot_results(model, X, y, save_path=None):
+def plot_results(model, X, y, save_path=None, sklearn=False, show=False):
     """ 
     Plot predicted results
 
@@ -590,14 +592,25 @@ def plot_results(model, X, y, save_path=None):
         - y: true forecast
         - save_path: String
                      Path where to save the figure
+        - sklearn: boolean
+                    whether it is a sklearn model or not 
+    Returns:
+    --------
+        - y_pred: the forecasted values
 
     """
-    with torch.no_grad():
-        X = X.unsqueeze(0)
 
-        y_pred = model(X).squeeze(0)
-        
-        print(F.mse_loss(y_pred, y))
+    if sklearn:
+        y_pred = model.predict(X)
+
+    else:
+
+        with torch.no_grad():
+            X = X.unsqueeze(0)
+
+            y_pred = model(X).squeeze(0)
+            
+            print(F.mse_loss(y_pred, y))
         
     plt.figure(figsize=(6,4))
     plt.plot(y, label="True values" )
@@ -606,10 +619,177 @@ def plot_results(model, X, y, save_path=None):
     plt.xlabel("timestamps")
     plt.ylabel("Production Power Normalized")
     plt.legend()
-    plt.savefig(save_path, dpi=200)
-    plt.show()
+    if save_path:
+        plt.savefig(save_path, dpi=200)
+    if show:
+        plt.show()
+
+    return y_pred
 
 def pinball_loss(d, f, alpha):
     return max(alpha*(d-f), (1-alpha)*(f-d))
 
+# Define RMSE metric
+def rmse(y, yhat):
+    l = MeanSquaredError(square_root=True)
+    return l(y, yhat)
+
+def big_dataset(new_df, type_data, gap=0, farm=0):
+    """
+    Creates a big dataset at each 96 time steps with a forecasting horizon of 
+    96 steps.
+
+    args:
+    -----
+        new_df: Pandas DataFrame with 
+                'histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
+                'histoTemperature0_80', 'histoWindSpeedNorm0_100',
+                'histoWindSpeedAngle0_100', 'histoTemperature0_100'
+                'windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
+                'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100'
+                'prod_wf0'
+                as columns
+        type_data: string either "train", "valid" or "test"
+        farm: integer in {0,1,2}
+
+    return:
+    -------
+        X_histo: numpy array of size (num_samples, history_size, num_histo_features)
+        X_forecast: numpy array of size (num_samples, forecast_horizon, num_forecast_features)
+        y: numpy array of size (num_samples, forecast_horizon)
+    """    
+    verbose = False
+
+    histo_features = ['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
+                      'histoTemperature0_80', 'histoWindSpeedNorm0_100',
+                      'histoWindSpeedAngle0_100', 'histoTemperature0_100']# ,
+                      # f'prod_wf0']
+    history_size = 96
+    num_histo_features = len(histo_features)
+
+    forecast_features = ['windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
+                         'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100']
+    num_forecast_features = len(forecast_features)
+    forecast_horizon = 96
+
+    num_samples= len(new_df) - history_size - forecast_horizon - gap
+
+    X_histo = np.empty((num_samples, history_size, num_histo_features))
+    X_forecast = np.empty((num_samples, forecast_horizon+gap, num_forecast_features))
+
+    y = np.empty((num_samples, forecast_horizon))
+
+    for t in range(num_samples):
+        if not t % 1000:
+            print(f"{t} over {num_samples}")
+        histo = new_df[histo_features].iloc[t:history_size+t]# .values.reshape((96*6))
+        X_histo[t,:,:] = histo
+        forecast = new_df[forecast_features].iloc[history_size+t:history_size+gap+t+forecast_horizon].values # .reshape((6*(i+1)))
+        X_forecast[t,:,:] = forecast
+
+        y[t,:] = new_df["prod_wf0"].iloc[history_size+gap+t:history_size+gap+t+forecast_horizon]
+
+        if verbose:
+            print("X histo", new_df.iloc[t:history_size+t])
+            print("X forecast", new_df.iloc[history_size+t:history_size+gap+t+forecast_horizon])
+            print("y", new_df.iloc[history_size+gap+t:history_size+gap+t+forecast_horizon])
+            # print("histo", histo.shape, type(histo))
+            # print("forecast", forecast.shape, type(forecast))
+    
+    np.save(f"data/output15/X{farm}_big_{type_data}_histo_{history_size}_gap_{gap}.npy" , X_histo)
+    np.save(f"data/output15/X{farm}_big_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy" , X_forecast)
+    np.save(f"data/output15/y{farm}_big_{type_data}_{forecast_horizon}_gap_{gap}.npy", y)
+    
+
+    if verbose:
+        print("X_histo", X_histo.shape)
+        print("X_forecast", X_forecast.shape)
+        print("y", y.shape)
+
+
+    return X_histo, X_forecast, y
+
+def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96):
+    """
+    args:
+        day: integer between 1 and 96
+
+    returns:
+    --------
+        X: features matrix with history and forecast variable
+        y: target vector for day day
+    """
+    histo = np.load(f"data/output15/X{farm}_big_{type_data}_histo_{history_size}_gap_{gap}.npy")
+    forecast = np.load(f"data/output15/X{farm}_big_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
+
+    histo = histo.reshape((histo.shape[0], histo.shape[1]*histo.shape[2]))
+    forecast =  forecast[:,:gap+day,:].reshape(forecast.shape[0], (gap+day)*forecast.shape[2])
+
+    X = np.concatenate([histo, forecast], axis=1)
+
+    y = np.load(f"data/output15/y{farm}_big_{type_data}_{forecast_horizon}_gap_{gap}.npy")
+
+    y = y[:,day-1]
+
+    return X, y
+
+
+def get_dataset_rnn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96):
+    histo = np.load(f"data/output15/X{farm}_big_{type_data}_histo_{history_size}_gap_{gap}.npy")
+    forecast = np.load(f"data/output15/X{farm}_big_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
+    y = np.load(f"data/output15/y{farm}_big_{type_data}_{forecast_horizon}_gap_{gap}.npy")
+    
+    forecast = forecast[:,:gap+day,:]
+    if forecast.shape[2] != histo.shape[2]:
+        forecast = np.concatenate([forecast, np.zeros((forecast.shape[0], 
+                                                       forecast.shape[1], 1))], 
+                                  axis=2)
+    # print("histo", histo.shape)
+    # print("forecast", forecast.shape)
+    X = np.concatenate([histo, forecast], axis=1)
+    
+    return X, y
+
+
+def split_df(df, split=0.9):
+    """
+    Split into training and test set 
+
+    args:
+    -----
+        df: Pandas DataFrame with 
+        split: float between 0.0 and 1.0
+               Portion to allocate to the training set
+    return:
+    -------
+        df_train: 
+        df_valid:
+        df_test: 
+    """
+    split_index0 = int(len(df) * split)
+
+    split_index1 = split_index0 + (len(df) - split_index0) // 2
+
+    df_train = df.iloc[:split_index0]
+    df_valid = df.iloc[split_index0:split_index1]
+    df_test = df.iloc[split_index1:]
+
+    return df_train, df_valid, df_test
+
+
+def load_sklearn_model(path_to_model):
+    with open(path_to_model, 'rb') as f:
+        model = pickle.load(f)
+
+    return model
+
+def simple_plot(forecast, truth, periods=24, save=None):
+    x = np.arange(0,periods)
+    plt.figure()
+    plt.plot(x, forecast, label="forecast")
+    plt.plot(x, truth, label="Truth")
+    plt.legend()
+    if save:
+        plt.savefig(save, dpi=200)
+    # plt.show()
 
