@@ -68,6 +68,9 @@ if __name__ == '__main__':
         Y_train = np.empty((num_samples_train, fh))
         Y_valid = np.empty((num_samples_valid, fh))
 
+        Y_train_truth = np.empty((num_samples_train, fh))
+        Y_valid_truth = np.empty((num_samples_valid, fh))
+
 
         for day in range(fh):
             print("day", day)
@@ -82,10 +85,12 @@ if __name__ == '__main__':
             Y_train[:,day] = rfr.predict(X_train)
             Y_valid[:,day] = rfr.predict(X_valid)
 
-        _, y_train = get_dataset_rnn(day=95, farm=0, type_data="train", gap=48, 
-                                  history_size=96, forecast_horizon=96)
-        _, y_valid = get_dataset_rnn(day=95, farm=0, type_data="valid", gap=48, 
-                                  history_size=96, forecast_horizon=96)
+            Y_train_truth[:,day] = y_train
+            Y_valid_truth[:,day] = y_valid
+
+
+        y_train = Y_train_truth
+        y_valid = Y_valid_truth
 
         losses_train = np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1)) # [rmse(Y_train[i,:],y_train[i,:fh]) for i in range(num_samples_train)] # np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1))
         simple_plot(truth=y_train[0,:fh], forecast=Y_train[0], periods=fh, save="Images/random_forest_train.png")
@@ -100,6 +105,7 @@ if __name__ == '__main__':
         simple_plot(truth=y_train[best,:fh], forecast=Y_train[best], periods=96, save="Images/random_forest_train_best.png")
 
         worst = np.argmax(losses_train)
+        print("Worse index", worst)
         print(f"Worse rmse: {losses_train[worst]}")
         simple_plot(truth=y_train[worst,:fh], forecast=Y_train[worst], periods=96, save="Images/random_forest_train_worst.png")
 

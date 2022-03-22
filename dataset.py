@@ -426,7 +426,7 @@ if create_sklearn_datasets:
                     path_save_y=f"data/output15/y{farm}_small_test.npy")
 
     if big:
-        for farm in range(1,3):
+        for farm in range(1):
             print("Create dataset of farm", farm)
             new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
             df_train, df_valid, df_test = split_df(new_df, split=0.8)
