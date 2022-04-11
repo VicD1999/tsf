@@ -64,7 +64,7 @@ if __name__ == '__main__':
     else: # MAR DATASET
         # Climatology Forecaster
         farm = 0
-        new_df = pd.read_csv(f"../data/output15/dataset{farm}_15.csv")
+        new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
         df_train, df_valid, df_test = split_df(new_df, split=0.8)
 
         fh = 96
@@ -105,11 +105,11 @@ if __name__ == '__main__':
         # PLOT
         best = np.argmin(losses)
         print(f"Best rmse: {losses[best]}")
-        simple_plot(truth=y[best] ,forecast=y_pred, periods=96, save="../Images/naive_clim_valid_best.pdf")
+        simple_plot(truth=y[best] ,forecast=y_pred, periods=96, save="Images/naive_clim_valid_best.pdf")
 
         worst = np.argmax(losses)
         print(f"Worse rmse: {losses[worst]}")
-        simple_plot(truth=y[worst] ,forecast=y_pred, periods=96, save="../Images/naive_clim_valid_worst.pdf")
+        simple_plot(truth=y[worst] ,forecast=y_pred, periods=96, save="Images/naive_clim_valid_worst.pdf")
         
         # Persistance
         y_pred = X[:,95,-1].reshape((-1,1)) * np.ones(shape=(X.shape[0], fh))
@@ -120,11 +120,11 @@ if __name__ == '__main__':
         # PLOT
         best = np.argmin(losses_valid)
         print(f"Best rmse: {losses_valid[best]}")
-        simple_plot(truth=y[best] ,forecast=y_pred[best], periods=96, save="../Images/naive_persist_valid_best.pdf")
+        simple_plot(truth=y[best] ,forecast=y_pred[best], periods=96, save="Images/naive_persist_valid_best.pdf")
 
         worst = np.argmax(losses_valid)
         print(f"Worse rmse: {losses_valid[worst]}")
-        simple_plot(truth=y[worst] ,forecast=y_pred[worst], periods=96, save="../Images/naive_persist_valid_worst.pdf")
+        simple_plot(truth=y[worst] ,forecast=y_pred[worst], periods=96, save="Images/naive_persist_valid_worst.pdf")
 
 
 

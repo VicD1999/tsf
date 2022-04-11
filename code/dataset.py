@@ -25,7 +25,7 @@ if wind_time_serie:
     ################################################################
     #                      Wind time series FORECAST               #
     ################################################################
-    files_list = glob.glob("../data/MAR/concat*.nc")
+    files_list = glob.glob("data/MAR/concat*.nc")
     files_list = sorted(files_list)
 
     ls = []
@@ -79,10 +79,10 @@ if wind_time_serie:
         dico = {"TIME":time, "UUZ80":uuz80, "VVZ80":vvz80, "TTZ80": ttz80,"UUZ100":uuz100, "VVZ100":vvz100, "TTZ100": ttz100}
         df = pd.DataFrame(dico)
         df = df.drop_duplicates(subset=["TIME"],  ignore_index=True)
-        df.to_csv(f"../data/windFarm{num_wf}.csv", index=False)
+        df.to_csv(f"data/windFarm{num_wf}.csv", index=False)
 
 
-    files_list = glob.glob("../data/MAR/wind_farm*.nc")
+    files_list = glob.glob("data/MAR/wind_farm*.nc")
     files_list = sorted(files_list)
 
     ls = []
@@ -139,7 +139,7 @@ if wind_time_serie:
         df = pd.DataFrame(dico)
 
         df = df.drop_duplicates(subset=["TIME"],  ignore_index=True)
-        df.to_csv(f"../data/histoWindFarm{num_wf}.csv", index=False)
+        df.to_csv(f"data/histoWindFarm{num_wf}.csv", index=False)
 
 
 ################################################################
@@ -148,12 +148,12 @@ if wind_time_serie:
 
 if power_time_serie:
 
-    files_list = glob.glob("../data/ORES/export*.csv")
+    files_list = glob.glob("data/ORES/export*.csv")
     files_list = sorted(files_list)
 
-    paths_corrupted = ["../data/ORES/export_eolien_2021-02-01.csv", 
-                       "../data/ORES/export_eolien_2021-03-01.csv", 
-                       "../data/ORES/export_eolien_2021-04-01.csv"]
+    paths_corrupted = ["data/ORES/export_eolien_2021-02-01.csv", 
+                       "data/ORES/export_eolien_2021-03-01.csv", 
+                       "data/ORES/export_eolien_2021-04-01.csv"]
 
     names = ["coord", "rated installed power (kVA)", 
              "Contractual max power (kVA)", "kW", "Date-Time"]
@@ -203,7 +203,7 @@ if interpolation:
 
         dico = {}
 
-        df_wind = pd.read_csv(f"../data/windFarm{i}.csv")
+        df_wind = pd.read_csv(f"data/windFarm{i}.csv")
         time_serie = prod_per_wind_farm.iloc[i] # Get prod for i th wind farm
 
         points = df_wind['TIME'][:]
@@ -266,7 +266,7 @@ if interp_histo:
 
         dico = {}
 
-        df_wind = pd.read_csv(f"../data/histoWindFarm{i}.csv")
+        df_wind = pd.read_csv(f"data/histoWindFarm{i}.csv")
         # print(df_wind)
 
         time_serie = prod_per_wind_farm.iloc[i] # Get prod for i th wind farm
@@ -329,8 +329,8 @@ if interp_histo:
 
 if dataset:
     for i in range(3):
-        df1 = pd.read_csv(f"../data/histo_farm_{i}.csv")
-        df2 = pd.read_csv(f"../data/farm{i}.csv")
+        df1 = pd.read_csv(f"data/histo_farm_{i}.csv")
+        df2 = pd.read_csv(f"data/farm{i}.csv")
         df1 = df1.drop(["time"], axis=1) # df_marks.drop(['chemistry'], axis=1)
         df1 = df1.drop(["prod_wf0"], axis=1)
         df = pd.concat([df1, df2], axis=1)
@@ -344,11 +344,11 @@ if dataset:
         df["DAYOFYEAR"] = df["ISO"].map(lambda x: x.timetuple().tm_yday)
         df["HOUR"]      = df["ISO"].map(lambda x: x.hour)
         df["MIN"]       = df["ISO"].map(lambda x: x.minute)
-        df.to_csv(f"../data/dataset{i}.csv", index=False)
+        df.to_csv(f"data/dataset{i}.csv", index=False)
     
 if output15:
     for i in range(3):
-        df = pd.read_csv(f"../data/dataset{i}.csv")
+        df = pd.read_csv(f"data/dataset{i}.csv")
         print(len(df))
         resolution = 15
         # df.columns
@@ -415,21 +415,21 @@ if create_sklearn_datasets:
     if small:
         # HERE It is a small dataset of only 385 days
         small_dataset(new_df=df_train, 
-                    path_save_X=f"../data/output15/X{farm}_small_train.npy",
-                    path_save_y=f"../data/output15/y{farm}_small_train.npy")
+                    path_save_X=f"data/output15/X{farm}_small_train.npy",
+                    path_save_y=f"data/output15/y{farm}_small_train.npy")
 
         small_dataset(new_df=df_valid, 
-                    path_save_X=f"../data/output15/X{farm}_small_valid.npy",
-                    path_save_y=f"../data/output15/y{farm}_small_valid.npy")
+                    path_save_X=f"data/output15/X{farm}_small_valid.npy",
+                    path_save_y=f"data/output15/y{farm}_small_valid.npy")
 
         small_dataset(new_df=df_test, 
-                    path_save_X=f"../data/output15/X{farm}_small_test.npy",
-                    path_save_y=f"../data/output15/y{farm}_small_test.npy")
+                    path_save_X=f"data/output15/X{farm}_small_test.npy",
+                    path_save_y=f"data/output15/y{farm}_small_test.npy")
 
     if big:
         for farm in range(1):
             print("Create dataset of farm", farm)
-            new_df = pd.read_csv(f"../data/output15/dataset{farm}_15.csv")
+            new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
             df_train, df_valid, df_test = split_df(new_df, split=0.8)
 
             big_dataset(df_train, type_data="train", gap=48, farm=farm)

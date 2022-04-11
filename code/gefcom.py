@@ -10,7 +10,7 @@ def create_gefcom_dataset():
         df = pd.DataFrame()
         for i in range(1,16):
             # print(i)
-            df = pd.concat([df, pd.read_csv(f"../GEFCom2014Data/Wind/Task {i}/Task{i}_W_Zone1_10/Task{i}_W_Zone{zone}.csv")], ignore_index=True)
+            df = pd.concat([df, pd.read_csv(f"GEFCom2014Data/Wind/Task {i}/Task{i}_W_Zone1_10/Task{i}_W_Zone{zone}.csv")], ignore_index=True)
             # print(df.iloc[-1])
             # print()
 
@@ -22,10 +22,10 @@ def create_gefcom_dataset():
     df = pd.concat([dico[i] for i in range(1,11)])
     df.fillna(method="ffill", inplace=True)
 
-    df.to_csv("../GEFCom2014Data/Wind/concat.csv")
+    df.to_csv("GEFCom2014Data/Wind/concat.csv")
 
 def open_gefcom():
-    df = pd.read_csv("../GEFCom2014Data/Wind/concat.csv")
+    df = pd.read_csv("GEFCom2014Data/Wind/concat.csv")
     df = df.rename(columns={"Unnamed: 0":"t"})
 
     return df

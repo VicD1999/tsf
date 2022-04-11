@@ -128,7 +128,7 @@ class Attention_Net(nn.Module):
         return y
 
 if __name__ == '__main__':
-    data = u.load_split_dataset(path="../data/120_60.pkl")
+    data = u.load_split_dataset(path="data/120_60.pkl")
     batch_size = 32
     X_train = torch.Tensor(data["X_train"])
     y_train = torch.Tensor(data["y_train"])
