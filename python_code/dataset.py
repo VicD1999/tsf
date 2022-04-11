@@ -413,6 +413,8 @@ if create_sklearn_datasets:
     
 
     if small:
+        new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
+        df_train, df_valid, df_test = split_df(new_df, split=0.8)
         # HERE It is a small dataset of only 385 days
         small_dataset(new_df=df_train, 
                     path_save_X=f"data/output15/X{farm}_small_train.npy",
