@@ -61,10 +61,10 @@ if __name__ == '__main__':
 
     if dataset_creation:
         u.create_dataset(vervose=False, normalize=False)
-        df = pd.read_csv("data/dataset.csv")
+        df = pd.read_csv("../data/dataset.csv")
         # data = u.get_random_split_dataset(df, window_size=args.window_size, 
         #                      forecast_size=args.forecast_size, add_forecast=True)
-        # u.write_split_dataset(data, path="data/{}_{}.pkl".format(
+        # u.write_split_dataset(data, path="../data/{}_{}.pkl".format(
         #     args.window_size, args.forecast_size))
 
 
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         
         # Data Loading
         if not data:
-            data = u.load_split_dataset(path="data/{}_{}.pkl".format(
+            data = u.load_split_dataset(path="../data/{}_{}.pkl".format(
                 args.window_size, args.forecast_size))
 
         X_train = torch.Tensor(data["X_train"])
@@ -114,16 +114,16 @@ if __name__ == '__main__':
 
         model.to(device)
 
-        if not os.path.isdir('results'):
-                os.mkdir("results")
+        if not os.path.isdir('../results'):
+                os.mkdir("../results")
 
         if not args.continue_training:
-            with open('results/' + args.rnn + '.csv', 'w') as f:
+            with open('../results/' + args.rnn + '.csv', 'w') as f:
                 f.write('epoch,train_loss,valid_loss,time\n')
             restart_epoch = 0
 
         else:
-            df = pd.read_csv('results/' + args.rnn + '.csv')
+            df = pd.read_csv('../results/' + args.rnn + '.csv')
             restart_epoch = len(df)
             del df
 
@@ -155,12 +155,12 @@ if __name__ == '__main__':
 
                 # Checkpoint
                 if e % checkpoint == 0 or e == restart_epoch + args.epoch - 1:
-                    if not os.path.isdir('model'):
-                        os.mkdir("model")
-                    if not os.path.isdir("model/" + args.rnn):
-                        os.mkdir("model/" + args.rnn)
+                    if not os.path.isdir('../model'):
+                        os.mkdir("../model")
+                    if not os.path.isdir("../model/" + args.rnn):
+                        os.mkdir("../model/" + args.rnn)
                     torch.save(model.state_dict(), 
-                               "model/{}/{}_{}_{}.model".format(args.rnn, 
+                               "../model/{}/{}_{}_{}.model".format(args.rnn, 
                                                                 args.rnn,
                                                                 hidden_size, 
                                                                 e + 1))
@@ -204,14 +204,14 @@ if __name__ == '__main__':
                     mean_loss, std_loss, mean_loss_valid, std_loss_valid, duration))
 
     if args.evaluation:
-        if not os.path.isdir("results/figure/"):
-            os.mkdir("results/figure/")
+        if not os.path.isdir("../results/figure/"):
+            os.mkdir("../results/figure/")
 
-        df = pd.read_csv("results/" + args.rnn + ".csv")
+        df = pd.read_csv("../results/" + args.rnn + ".csv")
         print(df)
-        u.plot_curve_losses(df, save_path=f"results/figure/{args.rnn}_curve_loss.png")
+        u.plot_curve_losses(df, save_path=f"../results/figure/{args.rnn}_curve_loss.png")
 
-        data = u.load_split_dataset(path="data/{}_{}.pkl".format(args.window_size, args.forecast_size))
+        data = u.load_split_dataset(path="../data/{}_{}.pkl".format(args.window_size, args.forecast_size))
 
         X_valid = torch.Tensor(data["X_valid"])
         y_valid = torch.Tensor(data["y_valid"])
@@ -221,17 +221,17 @@ if __name__ == '__main__':
         print(args.hidden_size, seq_length, args.forecast_size)
         model = rnns[args.rnn](input_size=5, hidden_size=args.hidden_size, 
                                seq_length=seq_length, output_size=args.forecast_size)
-        model.load_state_dict(torch.load(f"model/{args.rnn}/{args.evaluation}.model", map_location=torch.device('cpu')), strict=False)
+        model.load_state_dict(torch.load(f"../model/{args.rnn}/{args.evaluation}.model", map_location=torch.device('cpu')), strict=False)
 
         indexes = [0, 100, 200, 250]
 
         for idx in indexes:
-            u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:], save_path=f"results/figure/{args.rnn}_{idx}.png")
+            u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:], save_path=f"../results/figure/{args.rnn}_{idx}.png")
 
     if args.comparison:
         # Data Loading
         if not data:
-            data = u.load_split_dataset(path="data/{}_{}.pkl".format(
+            data = u.load_split_dataset(path="../data/{}_{}.pkl".format(
                 args.window_size, args.forecast_size))
 
         device = torch.device('cpu')
@@ -254,7 +254,7 @@ if __name__ == '__main__':
         for rnn, model_name in zip(rnns, model_names):
             model = rnns[rnn](input_size=input_size, hidden_size=args.hidden_size, 
                                    seq_length=seq_length, output_size=args.forecast_size)
-            model.load_state_dict(torch.load(f"model/{rnn}/{model_name}.model", map_location=device), strict=False)
+            model.load_state_dict(torch.load(f"../model/{rnn}/{model_name}.model", map_location=device), strict=False)
 
             mean_loss_valid = 0
             # Validation Loss

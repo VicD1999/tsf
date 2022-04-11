@@ -3,8 +3,8 @@
 
 from scipy.io import netcdf
 
-netCDF_file_path = "data/MAR/concat.nc"
-netCDF_file_path2 = "data/MAR/concat2.nc"
+netCDF_file_path = "../data/MAR/concat.nc"
+netCDF_file_path2 = "../data/MAR/concat2.nc"
 
 new_netcdf = {}
 new_netcdf2 = {}

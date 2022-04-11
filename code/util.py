@@ -13,21 +13,21 @@ import torch.nn.functional as F
 
 from sktime.performance_metrics.forecasting import MeanSquaredError
 
-paths_ores = ["data/ORES/export_eolien_2021-02-01.csv",
-              "data/ORES/export_eolien_2021-03-01.csv",
-              "data/ORES/export_eolien_2021-04-01.csv",
-              "data/ORES/export_eolien_2021-05-01.csv",
-              "data/ORES/export_eolien_2021-06-01.csv",
-              "data/ORES/export_eolien_2021-07-01.csv",
-              "data/ORES/export_eolien_2021-08-01.csv",
-              "data/ORES/export_eolien_2021-09-01.csv",
-              "data/ORES/export_eolien_2021-10-01.csv",
-              "data/ORES/export_eolien_2021-11-01.csv",
-              "data/ORES/export_eolien_2021-12-01.csv",
-              "data/ORES/export_eolien_2022-01-01.csv",
-              "data/ORES/export_eolien_2022-02-01.csv"]
+paths_ores = ["../data/ORES/export_eolien_2021-02-01.csv",
+              "../data/ORES/export_eolien_2021-03-01.csv",
+              "../data/ORES/export_eolien_2021-04-01.csv",
+              "../data/ORES/export_eolien_2021-05-01.csv",
+              "../data/ORES/export_eolien_2021-06-01.csv",
+              "../data/ORES/export_eolien_2021-07-01.csv",
+              "../data/ORES/export_eolien_2021-08-01.csv",
+              "../data/ORES/export_eolien_2021-09-01.csv",
+              "../data/ORES/export_eolien_2021-10-01.csv",
+              "../data/ORES/export_eolien_2021-11-01.csv",
+              "../data/ORES/export_eolien_2021-12-01.csv",
+              "../data/ORES/export_eolien_2022-01-01.csv",
+              "../data/ORES/export_eolien_2022-02-01.csv"]
 
-paths_mar = ["data/MAR/concat.nc"]
+paths_mar = ["../data/MAR/concat.nc"]
 
 """
 ["data/MAR/concat_20210118_20210131.nc", # 02
@@ -194,9 +194,9 @@ def create_dataframe(path_ores_data, path_mar_data):
     """
     
     # Open csv file from ORES
-    paths_corrupted = ["data/ORES/export_eolien_2021-02-01.csv", 
-                       "data/ORES/export_eolien_2021-03-01.csv", 
-                       "data/ORES/export_eolien_2021-04-01.csv"]
+    paths_corrupted = ["../data/ORES/export_eolien_2021-02-01.csv", 
+                       "../data/ORES/export_eolien_2021-03-01.csv", 
+                       "../data/ORES/export_eolien_2021-04-01.csv"]
 
     names = ["coord", "rated installed power (kVA)", 
              "Contractual max power (kVA)", "kW", "Date-Time"]
@@ -546,14 +546,14 @@ def get_random_split_dataset(df, num_bins=50, percentage=0.2, window_size=120,
     return split_data
 
 
-def load_split_dataset(path="data/data.pkl"):
+def load_split_dataset(path="../data/data.pkl"):
     """ Load the split dataset """
     with open(path, "rb") as f:
         data = pickle.load(f)
 
     return data
 
-def write_split_dataset(data, path="data/data.pkl"):
+def write_split_dataset(data, path="../data/data.pkl"):
     """ Save the split dataset """
     with open(path, "wb") as f:
         pickle.dump(data, f)
