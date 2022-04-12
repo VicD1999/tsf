@@ -709,6 +709,81 @@ def big_dataset(new_df, type_data, gap=0, farm=0):
 
     return X_histo, X_forecast, y
 
+def small_dataset(new_df, type_data, gap=0, farm=0):
+    """
+    Creates a small dataset at each 96 time steps with a forecasting horizon of 
+    96 steps.
+
+    args:
+    -----
+        new_df: Pandas DataFrame with 
+                'histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
+                'histoTemperature0_80', 'histoWindSpeedNorm0_100',
+                'histoWindSpeedAngle0_100', 'histoTemperature0_100'
+                'windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
+                'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100'
+                'prod_wf0'
+                as columns
+        type_data: string either "train", "valid" or "test"
+        farm: integer in {0,1,2}
+
+    return:
+    -------
+        X_histo: numpy array of size (num_samples, history_size, num_histo_features)
+        X_forecast: numpy array of size (num_samples, forecast_horizon+gap, num_forecast_features)
+        y: numpy array of size (num_samples, forecast_horizon)
+    """    
+    farm = 0 # AFTER: for farm in range(3):
+    new_df.reset_index(inplace=True)
+    skip_half_day = new_df[new_df["HOUR"] == 12].index[0]
+    # print(new_df[new_df["HOUR"] == 12].index)
+    # print("skip_half_day", skip_half_day)
+    history_size = 96
+    forecast_horizon = 96
+    histo_features = ['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
+                      'histoTemperature0_80', 'histoWindSpeedNorm0_100',
+                      'histoWindSpeedAngle0_100', 'histoTemperature0_100',
+                      f'prod_wf0']
+    num_histo_features = len(histo_features)
+    forecast_features = ['windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
+                         'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100']
+    num_forecast_features = len(forecast_features)
+    
+    num_samples= (len(new_df)//(history_size)) - 2 
+    # print(num_samples)
+    get_date = ['YEAR', 'DAYOFYEAR', 'HOUR', 'MIN']
+
+    i = 0 # for regressor t+1 only 6 forecast
+          # for regressor t+n 6*n forecasts
+
+    X_histo = np.empty((num_samples, history_size, num_histo_features))
+    X_forecast = np.empty((num_samples, forecast_horizon+gap, num_forecast_features))
+
+    y = np.empty((num_samples, forecast_horizon))
+
+    for t in range(num_samples):
+        histo = new_df[histo_features].iloc[skip_half_day+t*history_size:skip_half_day+(t+1)*history_size]
+        # print("histo", new_df[get_date].iloc[skip_half_day+t*history_size:skip_half_day+(t+1)*history_size])
+        try:
+            X_histo[t,:,:] = histo
+        
+            forecast = new_df[forecast_features].iloc[skip_half_day+(t+1)*history_size:skip_half_day+(t+1)*history_size+(gap+forecast_horizon)]
+            # print("forecast", new_df[get_date].iloc[skip_half_day+(t+1)*history_size:skip_half_day+(t+1)*history_size+(gap+forecast_horizon)])
+            X_forecast[t,:,:] = forecast
+            # print("y", new_df[get_date].iloc[skip_half_day+(t+1)*history_size+gap:skip_half_day+(t+1)*history_size+gap+forecast_horizon])
+            y[t] = new_df["prod_wf0"].iloc[skip_half_day+(t+1)*history_size+gap:skip_half_day+(t+1)*history_size+gap+forecast_horizon]
+
+        except:
+            print(t, num_samples)
+
+    np.save(f"data/output15/X{farm}_small_{type_data}_histo_{history_size}_gap_{gap}.npy" , X_histo)
+    np.save(f"data/output15/X{farm}_small_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy" , X_forecast)
+    np.save(f"data/output15/y{farm}_small_{type_data}_{forecast_horizon}_gap_{gap}.npy", y)
+    
+
+    return X_histo, X_forecast, y
+
+
 def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96):
     """
     args:

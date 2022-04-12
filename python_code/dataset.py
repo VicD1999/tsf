@@ -8,12 +8,12 @@ from sklearn.model_selection import TimeSeriesSplit
 from util import *
 
 wind_time_serie = False
-power_time_serie = True
+power_time_serie = False
 interpolation = False
 interp_histo = False
 dataset = False
 output15 = False
-create_sklearn_datasets = False
+create_sklearn_datasets = True
 
 locations = [(2,31,61), (2,17,27), (2,23,39)] # (k,j,i)
  
@@ -367,69 +367,25 @@ if output15:
         new_df.to_csv(f"data/output15/dataset{i}_15.csv", index=False)
 
 
-def small_dataset(new_df, path_save_X=None, path_save_y=None):
-    farm = 0 # AFTER: for farm in range(3):
-    num_samples= len(new_df)//(96)
-
-    i = 0 # for regressor t+1 only 6 forecast
-          # for regressor t+n 6*n forecasts
-
-    X = np.empty((num_samples, 96*6+6))
-
-    y = np.empty((num_samples))
-
-    for t in range(num_samples):
-
-        histo = new_df[['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
-                          'histoTemperature0_80', 'histoWindSpeedNorm0_100',
-                          'histoWindSpeedAngle0_100', 'histoTemperature0_100',]].iloc[t*96:(t+1)*96].values.reshape((96*6))
-        forecast = new_df[['windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
-                           'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100']].iloc[(t+1)*96:96*(t+1)+1].values.reshape((6))
-        
-        concat = np.concatenate([histo,forecast], axis=0)
-        # print("concat", concat.shape)
-        X[t,:] = concat
-        y[t] = new_df["prod_wf0"].iloc[(t+1)*96:96*(t+1)+1]
-
-        # print("histo", histo.shape, type(histo))
-        # print("forecast", forecast.shape, type(forecast))
-
-    print("X", X.shape)
-    print("y", y.shape)
-
-    if path_save_X:
-        np.save(path_save_X, X)
-    if path_save_y:
-        np.save(path_save_y, y)
-
-    return X, y
-
-
 if create_sklearn_datasets:
-    big = True
-    small = False
+    big = False
+    small = True
 
-    farm = 0
+    num_farms = 3
     
 
     if small:
-        new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
-        df_train, df_valid, df_test = split_df(new_df, split=0.8)
-        # HERE It is a small dataset of only 385 days
-        small_dataset(new_df=df_train, 
-                    path_save_X=f"data/output15/X{farm}_small_train.npy",
-                    path_save_y=f"data/output15/y{farm}_small_train.npy")
-
-        small_dataset(new_df=df_valid, 
-                    path_save_X=f"data/output15/X{farm}_small_valid.npy",
-                    path_save_y=f"data/output15/y{farm}_small_valid.npy")
-
-        small_dataset(new_df=df_test, 
-                    path_save_X=f"data/output15/X{farm}_small_test.npy",
-                    path_save_y=f"data/output15/y{farm}_small_test.npy")
+        for farm in range(num_farms):
+            print("Create dataset of farm", farm)
+            new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
+            df_train, df_valid, df_test = split_df(new_df, split=0.8)
+            # HERE It is a small dataset of only 385 days
+            small_dataset(df_train, type_data="train", gap=48, farm=farm)
+            small_dataset(df_valid, type_data="valid", gap=48, farm=farm)
+            small_dataset(df_test, type_data="test", gap=48, farm=farm)
 
     if big:
-        for farm in range(1):
+        for farm in range(num_farms):
             print("Create dataset of farm", farm)
             new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
             df_train, df_valid, df_test = split_df(new_df, split=0.8)
