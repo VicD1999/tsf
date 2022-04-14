@@ -13,12 +13,19 @@ from torch.utils.data import TensorDataset, DataLoader
 import torch.nn.functional as F
 import torch
 
+from pytorch_forecasting.metrics import RMSE, MAPE
+
+def loss_function(y, y_pred, reduction="mean"):
+
+    rmse = RMSE(reduction=reduction)
+    mape = MAPE(reduction=reduction)
+
+    return rmse(y, y_pred) + mape(y, y_pred)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Dataset args
-    parser.add_argument('-d','--dataset_creation', help='Create the dataset', 
-                        action="store_true")
     parser.add_argument('--forecast_size', help='Size of the forecast window', 
                         type=int, default=60)
     parser.add_argument('--window_size', help='Size of the input window', 
@@ -42,6 +49,9 @@ if __name__ == '__main__':
         help='Continue the training. Requires the path of the model to train', 
         required=False, default=None, type=str)
 
+    parser.add_argument('--dataset_size', help='Eval model', 
+                        type=str, default="small")
+
     # Model Evaluation args
     parser.add_argument('-e','--evaluation', help='Eval model', 
                         type=str, default=None)
@@ -55,35 +65,29 @@ if __name__ == '__main__':
     rnns = {"LSTM":LSTM, "GRU":GRU, "BRC":BRC, "nBRC":nBRC, 
             "attn":Attention_Net, "simple_rnn":simple_rnn}
 
-    dataset_creation = args.dataset_creation
     model_training = args.training
     data = None
-
-    if dataset_creation:
-        u.create_dataset(vervose=False, normalize=False)
-        df = pd.read_csv("data/dataset.csv")
-        # data = u.get_random_split_dataset(df, window_size=args.window_size, 
-        #                      forecast_size=args.forecast_size, add_forecast=True)
-        # u.write_split_dataset(data, path="data/{}_{}.pkl".format(
-        #     args.window_size, args.forecast_size))
 
 
     if model_training:
         device = torch.device('cpu')
         batch_size = args.batch_size
         checkpoint = 1
-        
-        # Data Loading
-        if not data:
-            data = u.load_split_dataset(path="data/{}_{}.pkl".format(
-                args.window_size, args.forecast_size))
 
-        X_train = torch.Tensor(data["X_train"])
-        y_train = torch.Tensor(data["y_train"])
+        day=96
+        X_train, y_train = u.get_dataset_rnn(day=day, farm=0, type_data="train", gap=48, 
+                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
+        X_valid, y_valid = u.get_dataset_rnn(day=day, farm=0, type_data="valid", gap=48, 
+                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
+
+        X_train = torch.from_numpy(X_train)
+        y_train = torch.from_numpy(y_train)
         train_set_len = X_train.shape[0]
 
-        X_valid = torch.Tensor(data["X_valid"])
-        y_valid = torch.Tensor(data["y_valid"])
+        print(f"X_train {X_train.shape}, y_train {y_train.shape}")
+
+        X_valid = torch.from_numpy(X_valid)
+        y_valid = torch.from_numpy(y_valid)
         val_set_len = X_valid.shape[0]
 
         train = TensorDataset(X_train, y_train)
@@ -140,6 +144,7 @@ if __name__ == '__main__':
                 # print(y_batch.shape)
                 x_batch, y_batch = x_batch.to(device), y_batch.to(device)
                 output = model(x_batch)
+                # print("output", output.shape)
                 
                 # print(output.shape)
                 loss = F.mse_loss(output, y_batch)
@@ -154,17 +159,17 @@ if __name__ == '__main__':
                                    torch.cat((losses_train, mse_tensor), dim=0)
 
                 # Checkpoint
-                if e % checkpoint == 0 or e == restart_epoch + args.epoch - 1:
-                    if not os.path.isdir('model'):
-                        os.mkdir("model")
-                    if not os.path.isdir("model/" + args.rnn):
-                        os.mkdir("model/" + args.rnn)
-                    torch.save(model.state_dict(), 
-                               "model/{}/{}_{}_{}.model".format(args.rnn, 
-                                                                args.rnn,
-                                                                hidden_size, 
-                                                                e + 1))
+                if not os.path.isdir('model'):
+                    os.mkdir("model")
+                if not os.path.isdir("model/" + args.rnn):
+                    os.mkdir("model/" + args.rnn)
+                torch.save(model.state_dict(), 
+                           "model/{}/{}_{}_{}.model".format(args.rnn, 
+                                                            args.rnn,
+                                                            hidden_size, 
+                                                            e + 1))
 
+            # print("losses_train", losses_train.shape)
             mean_loss = torch.mean(losses_train, dim=0)
             std_loss = torch.std(losses_train, dim=0)
 
@@ -204,41 +209,90 @@ if __name__ == '__main__':
                     mean_loss, std_loss, mean_loss_valid, std_loss_valid, duration))
 
     if args.evaluation:
+        """
         if not os.path.isdir("results/figure/"):
             os.mkdir("results/figure/")
 
         df = pd.read_csv("results/" + args.rnn + ".csv")
         print(df)
         u.plot_curve_losses(df, save_path=f"results/figure/{args.rnn}_curve_loss.png")
+        """
 
-        data = u.load_split_dataset(path="data/{}_{}.pkl".format(args.window_size, args.forecast_size))
+        day = 95
+        batch_size = args.batch_size
+        indexes = [0, 1, 2, 3]
+        X_train, y_train = u.get_dataset_rnn(day=day, farm=0, type_data="train", gap=48, 
+                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
+        X_train = torch.from_numpy(X_train).float()
+        y_train = torch.from_numpy(y_train)
 
-        X_valid = torch.Tensor(data["X_valid"])
-        y_valid = torch.Tensor(data["y_valid"])
-
-        seq_length = X_valid.shape[1]
+        train = TensorDataset(X_train, y_train)
+        train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, drop_last=False)
+        
+        seq_length = X_train.shape[1]
+        input_size = X_train.shape[2]
 
         print(args.hidden_size, seq_length, args.forecast_size)
-        model = rnns[args.rnn](input_size=5, hidden_size=args.hidden_size, 
+        model = rnns[args.rnn](input_size=input_size, hidden_size=args.hidden_size, 
                                seq_length=seq_length, output_size=args.forecast_size)
         model.load_state_dict(torch.load(f"model/{args.rnn}/{args.evaluation}.model", map_location=torch.device('cpu')), strict=False)
 
-        indexes = [0, 100, 200, 250]
+        rmse = RMSE(reduction="none")
+        losses_train = None
+        for x_batch, y_batch in train_loader:
+            output = model(x_batch)
+            with torch.no_grad():
+                loss_train = rmse(output, y_batch)
+                rmse_tensor = torch.mean(loss_train, dim=1)
+                losses_train = rmse_tensor if losses_train is None else \
+                               torch.cat((losses_train, rmse_tensor), dim=0)
+        print(f"RMSE TRAIN: {torch.mean(losses_train):.4f} \pm {torch.std(losses_train):.4f}")
+        best = torch.argmin(losses_train)
+        print("Best", best)
+        u.plot_results(model, X_train[best,:,:], y_train[best,:], save_path=f"results/figure/{args.rnn}_best_train.png")
 
+        for idx in indexes:
+            u.plot_results(model, X_train[idx,:,:], y_train[idx,:], save_path=f"results/figure/{args.rnn}_{idx}_train.png")
+
+        X_valid, y_valid = u.get_dataset_rnn(day=day, farm=0, type_data="valid", gap=48, 
+                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
+        X_valid = torch.from_numpy(X_valid).float()
+        y_valid = torch.from_numpy(y_valid)
+
+        val = TensorDataset(X_valid, y_valid)
+        val_loader = DataLoader(val, batch_size=batch_size, shuffle=True, drop_last=False)
+
+        losses_train = None
+        for x_batch, y_batch in val_loader:
+            output = model(x_batch)
+            with torch.no_grad():
+                loss_train = rmse(output, y_batch)
+                rmse_tensor = torch.mean(loss_train, dim=1)
+                losses_train = rmse_tensor if losses_train is None else \
+                               torch.cat((losses_train, rmse_tensor), dim=0)
+        print(f"RMSE VALID: {torch.mean(losses_train):.4f} \pm {torch.std(losses_train):.4f}")
+        best = torch.argmin(losses_train)
+        print("Best", best)
+        u.plot_results(model, X_valid[best,:,:], y_valid[best,:], save_path=f"results/figure/{args.rnn}_best_valid.png")
         for idx in indexes:
             u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:], save_path=f"results/figure/{args.rnn}_{idx}.png")
 
     if args.comparison:
         # Data Loading
-        if not data:
-            data = u.load_split_dataset(path="data/{}_{}.pkl".format(
-                args.window_size, args.forecast_size))
+        day = 95
+        X_train, y_train = u.get_dataset_rnn(day=day, farm=0, type_data="train", gap=48, 
+                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
+        X_valid, y_valid = u.get_dataset_rnn(day=day, farm=0, type_data="valid", gap=48, 
+                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
+
+        X_train = torch.from_numpy(X_train)
+        y_train = torch.from_numpy(y_train)
+
+        X_valid = torch.from_numpy(X_valid)
+        y_valid = torch.from_numpy(y_valid)
 
         device = torch.device('cpu')
         batch_size = 16
-
-        X_valid = torch.Tensor(data["X_valid"])
-        y_valid = torch.Tensor(data["y_valid"])
 
         val_set_len = X_valid.shape[0]
         seq_length = X_valid.shape[1]
@@ -248,8 +302,7 @@ if __name__ == '__main__':
 
         val_loader = DataLoader(val, batch_size=batch_size, shuffle=True)
 
-        model_names = [ "LSTM_64_7" ,"GRU_64_11", "BRC_64_9", 
-                        "nBRC_64_5", "attn_64_5"]
+        model_names = [ "simple_rnn_128_20" ]
 
         for rnn, model_name in zip(rnns, model_names):
             model = rnns[rnn](input_size=input_size, hidden_size=args.hidden_size, 

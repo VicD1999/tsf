@@ -368,17 +368,23 @@ if output15:
 
 
 if create_sklearn_datasets:
-    big = False
+    big = True
     small = True
 
     num_farms = 3
+
+    power_installed = [30000, 31000, 38150]
     
 
     if small:
         for farm in range(num_farms):
             print("Create dataset of farm", farm)
             new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
+            new_df["prod_wf0"] = new_df["prod_wf0"] / power_installed[farm]
+
             df_train, df_valid, df_test = split_df(new_df, split=0.8)
+            
+            
             # HERE It is a small dataset of only 385 days
             small_dataset(df_train, type_data="train", gap=48, farm=farm)
             small_dataset(df_valid, type_data="valid", gap=48, farm=farm)
@@ -388,6 +394,8 @@ if create_sklearn_datasets:
         for farm in range(num_farms):
             print("Create dataset of farm", farm)
             new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
+            new_df["prod_wf0"] = new_df["prod_wf0"] / power_installed[farm]
+
             df_train, df_valid, df_test = split_df(new_df, split=0.8)
 
             big_dataset(df_train, type_data="train", gap=48, farm=farm)

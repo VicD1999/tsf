@@ -7,36 +7,18 @@ import datetime
 import random
 import pickle
 import matplotlib.pyplot as plt
+import glob
 
 import torch
 import torch.nn.functional as F
 
 from sktime.performance_metrics.forecasting import MeanSquaredError
 
-paths_ores = ["data/ORES/export_eolien_2021-02-01.csv",
-              "data/ORES/export_eolien_2021-03-01.csv",
-              "data/ORES/export_eolien_2021-04-01.csv",
-              "data/ORES/export_eolien_2021-05-01.csv",
-              "data/ORES/export_eolien_2021-06-01.csv",
-              "data/ORES/export_eolien_2021-07-01.csv",
-              "data/ORES/export_eolien_2021-08-01.csv",
-              "data/ORES/export_eolien_2021-09-01.csv",
-              "data/ORES/export_eolien_2021-10-01.csv",
-              "data/ORES/export_eolien_2021-11-01.csv",
-              "data/ORES/export_eolien_2021-12-01.csv",
-              "data/ORES/export_eolien_2022-01-01.csv",
-              "data/ORES/export_eolien_2022-02-01.csv"]
+paths_ores = glob.glob("data/ORES/*.csv")
+paths_ores.sort()
 
 paths_mar = ["data/MAR/concat.nc"]
 
-"""
-["data/MAR/concat_20210118_20210131.nc", # 02
- "data/MAR/concat_20210201_20210228.nc", # 03
- "data/MAR/concat_20210228_20210331.nc", # 04
- "data/MAR/concat_20210331_20210430.nc", # 05
- "data/MAR/concat_20210430_20210531.nc", # 06
- "data/MAR/concat_20210531_20210630.nc"] # 07
-"""
 
 def get_wind_time(netCDF_file_path, location):
     """
@@ -610,7 +592,7 @@ def plot_results(model, X, y, save_path=None, sklearn=False, show=False):
 
             y_pred = model(X).squeeze(0)
             
-            print(F.mse_loss(y_pred, y))
+            # print(F.mse_loss(y_pred, y))
         
     plt.figure(figsize=(6,4))
     plt.plot(y, label="True values" )
@@ -733,7 +715,6 @@ def small_dataset(new_df, type_data, gap=0, farm=0):
         X_forecast: numpy array of size (num_samples, forecast_horizon+gap, num_forecast_features)
         y: numpy array of size (num_samples, forecast_horizon)
     """    
-    farm = 0 # AFTER: for farm in range(3):
     new_df.reset_index(inplace=True)
     skip_half_day = new_df[new_df["HOUR"] == 12].index[0]
     # print(new_df[new_df["HOUR"] == 12].index)
@@ -753,8 +734,8 @@ def small_dataset(new_df, type_data, gap=0, farm=0):
     # print(num_samples)
     get_date = ['YEAR', 'DAYOFYEAR', 'HOUR', 'MIN']
 
-    i = 0 # for regressor t+1 only 6 forecast
-          # for regressor t+n 6*n forecasts
+    # for regressor t+1 only 6 forecast
+    # for regressor t+n 6*n forecasts
 
     X_histo = np.empty((num_samples, history_size, num_histo_features))
     X_forecast = np.empty((num_samples, forecast_horizon+gap, num_forecast_features))
@@ -784,7 +765,7 @@ def small_dataset(new_df, type_data, gap=0, farm=0):
     return X_histo, X_forecast, y
 
 
-def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96):
+def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big"):
     """
     args:
         day: integer between 0 and 95
@@ -794,25 +775,25 @@ def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, 
         X: features matrix with history and forecast variable
         y: target vector for day day
     """
-    histo = np.load(f"data/output15/X{farm}_big_{type_data}_histo_{history_size}_gap_{gap}.npy")
-    forecast = np.load(f"data/output15/X{farm}_big_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
+    histo = np.load(f"data/output15/X{farm}_{size}_{type_data}_histo_{history_size}_gap_{gap}.npy")
+    forecast = np.load(f"data/output15/X{farm}_{size}_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
 
     histo = histo.reshape((histo.shape[0], histo.shape[1]*histo.shape[2]))
     forecast =  forecast[:,:gap+day,:].reshape(forecast.shape[0], (gap+day)*forecast.shape[2])
 
     X = np.concatenate([histo, forecast], axis=1)
 
-    y = np.load(f"data/output15/y{farm}_big_{type_data}_{forecast_horizon}_gap_{gap}.npy")
+    y = np.load(f"data/output15/y{farm}_{size}_{type_data}_{forecast_horizon}_gap_{gap}.npy")
 
     y = y[:,day]
 
     return X, y
 
 
-def get_dataset_rnn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96):
-    histo = np.load(f"data/output15/X{farm}_big_{type_data}_histo_{history_size}_gap_{gap}.npy")
-    forecast = np.load(f"data/output15/X{farm}_big_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
-    y = np.load(f"data/output15/y{farm}_big_{type_data}_{forecast_horizon}_gap_{gap}.npy")
+def get_dataset_rnn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big"):
+    histo = np.load(f"data/output15/X{farm}_{size}_{type_data}_histo_{history_size}_gap_{gap}.npy")
+    forecast = np.load(f"data/output15/X{farm}_{size}_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
+    y = np.load(f"data/output15/y{farm}_{size}_{type_data}_{forecast_horizon}_gap_{gap}.npy")
     
     forecast = forecast[:,:gap+day,:]
     if forecast.shape[2] != histo.shape[2]:

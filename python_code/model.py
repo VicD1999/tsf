@@ -14,25 +14,31 @@ class simple_rnn(nn.Module):
         super(simple_rnn, self).__init__()
         self.hidden_size = hidden_size
 
-        self.encoder = nn.GRU(input_size, hidden_size, num_layers=1, batch_first=True)
+        self.encoder = nn.GRU(input_size-1, hidden_size, num_layers=1, batch_first=True)
         torch.nn.init.orthogonal_(self.encoder.weight_hh_l0)
         torch.nn.init.orthogonal_(self.encoder.weight_ih_l0)
         
         # self.f = nn.Tanh()
+        self.f = nn.Sigmoid()
 
-        self.decoder = nn.Linear(hidden_size, output_size)
+        self.decoder = nn.Sequential(nn.Linear(hidden_size+output_size, hidden_size),
+                                      nn.ReLU(),
+                                      nn.Linear(hidden_size, output_size))
 
         
 
                   
     def forward(self, x):
-        y, h = self.encoder(x)
+        y, h = self.encoder(x[:,:,:-1])
 
         # y[:,-1,:] = self.f(y[:,-1,:])
-        
-        y = self.decoder(y[:,-1,:])
+        # print("y", y[:,-1,:].shape)
+        # print("x", x[:,:96,-1].shape)
+        concat = torch.cat([y[:,-1,:], x[:,:96,-1]], axis=1)
+        # print("concat", concat.shape)
+        y = self.decoder(concat)
 
-        
+        y = self.f(y)
             
         return y
 

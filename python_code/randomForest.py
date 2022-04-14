@@ -11,14 +11,22 @@ if __name__ == '__main__':
     # Dataset args
     parser.add_argument('-t','--training', help='Train the model', 
                         action="store_true")
+
+    parser.add_argument('-c_t','--continue_training',
+        help='Continue the training. Requires the path number of the last forest trained', 
+        required=False, default=0, type=int)
     # Model Evaluation args
     parser.add_argument('-e','--evaluation', help='Eval model', 
                         action="store_true")
 
     args = parser.parse_args()
 
+    power_wind_farm = 30_000
+
+    start = args.continue_training
+
     if args.training:
-        for day in range(96):
+        for day in range(start, 96):
             X, y = get_dataset_sklearn(day=day, farm=0, type_data="train", gap=48, 
                                        history_size=96, forecast_horizon=96)
             print("X", X.shape)
@@ -50,7 +58,7 @@ if __name__ == '__main__':
                                  sklearn=True, 
                                  show=False)
 
-        print("rmse:", rmse(y_hat, y), "rmse normalized", rmse(y_hat, y)/30_000)
+        print("rmse:", rmse(y_hat, y), "rmse normalized", rmse(y_hat, y)/power_wind_farm)
 
 
     if args.evaluation:
@@ -94,11 +102,11 @@ if __name__ == '__main__':
 
         losses_train = np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1)) # [rmse(Y_train[i,:],y_train[i,:fh]) for i in range(num_samples_train)] # np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1))
         simple_plot(truth=y_train[0,:fh], forecast=Y_train[0], periods=fh, save="Images/random_forest_train.png")
-        print(f"rmse: {np.mean(losses_train):.2f} \pm {np.std(losses_train):.2f} \nrmse normalized {np.mean(losses_train)/30_000:.2f} \pm {np.std(losses_train)/30_000:.2f}")
+        print(f"rmse: {np.mean(losses_train):.2f} \pm {np.std(losses_train):.2f} \nrmse normalized {np.mean(losses_train)/power_wind_farm:.2f} \pm {np.std(losses_train)/power_wind_farm:.2f}")
 
         losses_valid = np.sqrt(np.mean(np.square(Y_valid - y_valid[:,:fh]), axis=1)) # [rmse(Y_valid[i,:],y_valid[i,:fh]) for i in range(num_samples_valid)]# np.sqrt(np.mean(np.square(Y_valid - y_valid[:,:fh]), axis=1))
         simple_plot(truth=y_valid[0,:fh], forecast=Y_valid[0], periods=fh, save="Images/random_forest_valid.png")
-        print(f"rmse: {np.mean(losses_valid):.2f} \pm {np.std(losses_valid):.2f} \nrmse normalized {np.mean(losses_valid)/30_000:.2f} \pm {np.std(losses_valid)/30_000:.2f}")
+        print(f"rmse: {np.mean(losses_valid):.2f} \pm {np.std(losses_valid):.2f} \nrmse normalized {np.mean(losses_valid)/power_wind_farm:.2f} \pm {np.std(losses_valid)/power_wind_farm:.2f}")
 
         best = np.argmin(losses_train)
         print(f"Best rmse: {losses_train[best]}")
