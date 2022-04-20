@@ -42,6 +42,117 @@ class simple_rnn(nn.Module):
             
         return y
 
+class architecture(nn.Module):
+    """
+    input x = (B,L,P)
+    output y = (B,m)
+    """
+    def __init__(self, input_size, hidden_size, output_size, seq_length, gap_length):
+        super(architecture, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.gap_length = gap_length
+
+        self.hidden_size = hidden_size
+
+        self.encoder = nn.GRU(input_size, hidden_size, num_layers=1, batch_first=True)
+        torch.nn.init.orthogonal_(self.encoder.weight_hh_l0)
+        torch.nn.init.orthogonal_(self.encoder.weight_ih_l0)
+        
+        self.decoder = nn.Sequential(nn.Linear(hidden_size+input_size-1, hidden_size),
+                                      nn.ReLU(),
+                                      nn.Linear(hidden_size, 1),
+                                      nn.Sigmoid())
+
+        
+
+                  
+    def forward(self, x):
+        y, h = self.encoder(x[:,:96,:])
+
+        y_hat = torch.empty((x.shape[0], self.gap_length+self.output_size))
+        # print("y_hat", y_hat.shape)
+
+        for i in range(self.gap_length+self.output_size):
+            # print("y[:,-1,:]", y[:,-1,:].shape)
+            # print("x[:,96+i,:-1]", x[:,96+i,:-1].shape)
+            concat = torch.cat([y[:,-1,:], x[:,95+i,:-1]], axis=1)
+            # print("concat", concat.shape)
+            # print()
+            y = self.decoder(concat)
+            # print("y", y.shape)
+            y_hat[:,i] = y[:, 0]
+            
+            # print("x[:,96+i,:-1]", x[:,96+i,:-1].shape)
+            # print("y", y.shape)
+            z_hat_y = torch.cat([x[:,95+i,:-1], y], axis=1).unsqueeze(1)
+            # print("z_hat_y", z_hat_y.shape)
+            y, h = self.encoder(z_hat_y, h)
+            
+            
+        return y_hat[:,-self.output_size:]
+
+
+class architecture_history_forecast(nn.Module):
+    """
+    input x = (B,L,P)
+    output y = (B,m)
+    """
+    def __init__(self, input_size, hidden_size, output_size, histo_length, gap_length):
+        super(architecture_history_forecast, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.gap_length = gap_length
+        self.histo_length = histo_length
+
+        self.hidden_size = hidden_size
+
+        self.encoder_histo = nn.GRU(input_size, hidden_size, num_layers=1, batch_first=True)
+        torch.nn.init.orthogonal_(self.encoder_histo.weight_hh_l0)
+        torch.nn.init.orthogonal_(self.encoder_histo.weight_ih_l0)
+        
+        self.encoder_gap = nn.GRU(input_size-1, hidden_size, num_layers=1, batch_first=True)
+        torch.nn.init.orthogonal_(self.encoder_gap.weight_hh_l0)
+        torch.nn.init.orthogonal_(self.encoder_gap.weight_ih_l0)
+        
+        
+        self.decoder_forecast = nn.GRU(input_size-1, hidden_size*2, num_layers=1, batch_first=True)
+        
+        self.decoder = nn.Sequential(nn.Linear(hidden_size*2, hidden_size),
+                                      nn.ReLU(),
+                                      nn.Linear(hidden_size, 1),
+                                      nn.Sigmoid())
+
+        
+
+                  
+    def forward(self, x):
+        y_histo, h_histo = self.encoder_histo(x[:,:self.histo_length,:])
+        gap = x[:,self.histo_length:self.histo_length+self.gap_length,:-1]
+        # print("gap", gap.shape)
+        y_gap, h_gap = self.encoder_gap(gap)
+        
+        # print("h_histo", h_histo.shape)
+        h = torch.cat([h_histo, h_gap], axis=2)
+        # print("h", h.shape)
+        
+        y_hat = torch.empty((x.shape[0], self.output_size))
+        # print("y_hat", y_hat.shape)
+
+        for i in range(self.output_size):
+            # print("x[:,self.histo_length+self.gap_length+i,:-1]", x[:,self.histo_length+self.gap_length+i,:-1].shape)
+            z_hat = x[:,self.histo_length+self.gap_length+i-1,:-1].unsqueeze(1)
+            # print("h", h.shape)
+            y, h = self.decoder_forecast(z_hat, h)
+            y_ = self.decoder(y[:,-1,:])
+            # print("y_", y_.shape)
+            # print("y_hat", y_hat.shape)
+            y_hat[:,i] = self.decoder(y[:,-1,:]).squeeze(1)
+            
+            
+        return y_hat
+
+
 class LSTM(nn.Module):
 
     def __init__(self, input_size, hidden_size, seq_length, output_size, num_layers=1):
