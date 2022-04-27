@@ -8,26 +8,33 @@ import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
+from torch.nn import TransformerDecoder, TransformerDecoderLayer
 from torch.utils.data import dataset
 
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+
+# Inspired by the pytorch tutorial: https://pytorch.org/tutorials/beginner/transformer_tutorial.html
 
 class TransformerModel(nn.Module):
 
     def __init__(self, d_model: int, nhead: int, d_hid: int,
-                 nlayers: int, dropout: float = 0.5):
+                 nlayers: int, dropout: float = 0.5,
+                 target_length: int=96):
         super().__init__()
         self.d_model = d_model * 2
         self.model_type = 'Transformer'
         self.pos_encoder = PositionalEncoding(d_model, dropout)
+
         encoder_layers = TransformerEncoderLayer(self.d_model, nhead, d_hid, dropout, batch_first=True)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         # self.encoder = nn.Embedding(ntoken, d_model)
         
         self.decoder = nn.Sequential(nn.Linear(self.d_model, self.d_model*16),
                                       nn.ReLU(),
-                                      nn.Linear(self.d_model*16, 96),
+                                      nn.Linear(self.d_model*16, 1),
                                       nn.Sigmoid())
+
+        self.target_length = target_length
 
 
     def forward(self, src: Tensor, src_mask: Tensor) -> Tensor:
@@ -39,18 +46,90 @@ class TransformerModel(nn.Module):
         Returns:
             output Tensor of shape [seq_len, batch_size, ntoken]
         """
-        print("src before sqrt", src.shape)
+        # print("src before sqrt", src.shape)
         src = src * math.sqrt(self.d_model)
-        print("src AFter sqrt", src.shape)
+        # print("src AFter sqrt", src.shape)
         # print("BEFORE pos_encoder", src)
         src = self.pos_encoder(src)
-        print("AFTER pos_encoder", src.shape)
+        # print("AFTER pos_encoder", src.shape)
         # print("src", src.shape)
         # print("src_mask", src_mask.shape)
         output = self.transformer_encoder(src, src_mask)
-        print("AFTER Transformer", output.shape)
+        # print("AFTER Transformer", output.shape)
         output = self.decoder(output)
-        return output
+        return output[:,:self.target_length,0]
+
+class Transformer_enc_dec(nn.Module):
+
+    def __init__(self, d_model: int, nhead: int, d_hid: int,
+                 nlayers: int, dropout: float = 0.5,
+                 target_length: int=96):
+        super().__init__()
+        self.d_model = d_model * 2
+        self.model_type = 'Transformer'
+        self.pos_encoder = PositionalEncoding(d_model, dropout)
+        
+        encoder_layers = TransformerEncoderLayer(self.d_model, nhead, d_hid, dropout, batch_first=True)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
+
+
+        self.y_mask = generate_square_subsequent_mask(100)
+        decoder_layers = TransformerDecoderLayer(self.d_model, nhead, batch_first=True)
+        self.transformer_decoder = TransformerDecoder(decoder_layers, nlayers)
+
+        # self.encoder = nn.Embedding(ntoken, d_model)
+        
+        self.decoder = nn.Sequential(nn.Linear(self.d_model, self.d_model*16),
+                                      nn.ReLU(),
+                                      nn.Linear(self.d_model*16, 1),
+                                      nn.Sigmoid())
+
+        self.target_length = target_length
+
+
+    def forward(self, src: Tensor, src_mask: Tensor) -> Tensor:
+        """
+        Args:
+            src: Tensor, shape [seq_len, batch_size]
+            src_mask: Tensor, shape [seq_len, seq_len]
+
+        Returns:
+            output Tensor of shape [seq_len, batch_size, ntoken]
+        """
+        # print("src before sqrt", src.shape)
+        src = src * math.sqrt(self.d_model)
+        # print("src AFter sqrt", src.shape)
+        # print("BEFORE pos_encoder", src)
+        src = self.pos_encoder(src)
+        # print("AFTER pos_encoder", src.shape)
+        # print("src", src.shape)
+        # print("src_mask", src_mask.shape)
+        encoded_x = self.transformer_encoder(src, src_mask)
+        # print("AFTER Transformer", encoded_x.shape)
+
+
+        Sy = self.target_length # Should be 96
+        
+        y_i = -torch.ones((src.shape[0],14))
+        y_i = y_i.unsqueeze(1)
+        y_hat = torch.empty((src.shape[0], Sy))
+        for i in range(Sy):
+        # y_mask = self.y_mask[:Sy, :Sy].type_as(encoded_x)
+            y_mask = self.y_mask[:i+1, :i+1]
+            # print("i", i)
+            # print("y_i", y_i.shape)
+            # print("y_mask", y_mask.shape)
+            y_tmp = self.transformer_decoder(y_i, encoded_x, y_mask)
+            # print("y_tmp", y_tmp.shape)
+            y_i = torch.cat([y_i, y_tmp[:,-1,:].unsqueeze(1)], axis=1)
+
+            # print("y_i", y_i.shape)
+            y = self.decoder(y_i)
+            # print("y", y.shape)
+            y_hat[:,i] = y[:,0,0]
+
+            
+        return y_hat
 
 
 def generate_square_subsequent_mask(sz: int) -> Tensor:
@@ -60,24 +139,25 @@ def generate_square_subsequent_mask(sz: int) -> Tensor:
 
 class PositionalEncoding(nn.Module):
 
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 300):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
         position = torch.arange(max_len).unsqueeze(1)
-        print("position", position.shape)
+        # print("position", position.shape)
         div_term = torch.exp(torch.arange(0, d_model*2, 2) * (-math.log(10_000.0) / d_model))
-        print("div_term", div_term.shape)
+        # print("div_term", div_term.shape)
         pe = torch.zeros(1, max_len, d_model*2)
-        print("pe", pe.shape)
-        pe[0, :, 0::2] = torch.sin(position * div_term)
-        pe[0, :, 1::2] = torch.cos(position * div_term)
+        # print("pe", pe.shape)
+        pe[0, :, :d_model] = torch.sin(position * div_term)
+        pe[0, :, d_model:] = torch.cos(position * div_term)
 
         # TO SEE POSITIONAL ENCODING
         # plt.figure(figsize=(10,10))
         # plt.imshow(pe[0,:,:])
         # plt.show()
-        self.register_buffer('pe', pe)
+        # persistent=False tells PyTorch to not add the buffer to the state dict (e.g. when we save the model)
+        self.register_buffer("pe", pe, persistent=False)
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -86,29 +166,33 @@ class PositionalEncoding(nn.Module):
         """
         
         x = torch.cat((x, x), dim=2)
-        print("PositionalEncoding x", x.shape)
+        # print("PositionalEncoding x", x.shape)
         x = x + self.pe[0,:x.size(1)]
 
 
         return self.dropout(x)
 
 
+
+
+
+
 if __name__ == "__main__":
     print(torch.__version__)
     seq_length = 240
-    batch_size = 32
+    batch_size = 8
     
     head_dim = 32
     d_model = nhead = 7 # nhead * head_dim
     d_hid=2048
     nlayers=3
     dropout=0.5
-    model = TransformerModel(d_model=d_model, nhead=nhead, d_hid=d_hid,
+    model = Transformer_enc_dec(d_model=d_model, nhead=nhead, d_hid=d_hid,
                         nlayers=nlayers, dropout=dropout)
     x = torch.rand((batch_size, seq_length, d_model))
     print("x", x.shape)
     src_mask = generate_square_subsequent_mask(seq_length) # .to(device)
-    print("src_mask", src_mask)
+    print("src_mask", src_mask.shape)
     output = model(x, src_mask)
     print("output", output.shape)
     # print("model:", model)

@@ -561,9 +561,9 @@ def plot_curve_losses(df, save_path=None):
     plt.grid()
     plt.legend()
     plt.savefig(save_path, dpi=200)
-    plt.show()
+    # plt.show()
 
-def plot_results(model, X, y, save_path=None, sklearn=False, show=False):
+def plot_results(model, X, y, save_path=None, sklearn=False, show=False, src_mask=None):
     """ 
     Plot predicted results
 
@@ -589,8 +589,10 @@ def plot_results(model, X, y, save_path=None, sklearn=False, show=False):
 
         with torch.no_grad():
             X = X.unsqueeze(0)
-
-            y_pred = model(X).squeeze(0)
+            if src_mask is not None:
+                y_pred = model(X, src_mask).squeeze(0)
+            else:
+                y_pred = model(X).squeeze(0)
             
             # print(F.mse_loss(y_pred, y))
         
@@ -600,6 +602,7 @@ def plot_results(model, X, y, save_path=None, sklearn=False, show=False):
     plt.grid()
     plt.xlabel("timestamps")
     plt.ylabel("Production Power Normalized")
+    plt.ylim((0,1))
     plt.legend()
     if save_path:
         plt.savefig(save_path, dpi=200)
