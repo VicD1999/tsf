@@ -19,7 +19,8 @@ class TransformerModel(nn.Module):
 
     def __init__(self, d_model: int, nhead: int, d_hid: int,
                  nlayers: int, dropout: float = 0.5,
-                 target_length: int=96):
+                 target_length: int=96,
+                 device: str=None):
         super().__init__()
         self.d_model = d_model * 2
         self.model_type = 'Transformer'
@@ -63,8 +64,10 @@ class Transformer_enc_dec(nn.Module):
 
     def __init__(self, d_model: int, nhead: int, d_hid: int,
                  nlayers: int, dropout: float = 0.5,
-                 target_length: int=96):
+                 target_length: int=96,
+                 device: str=None):
         super().__init__()
+        self.device = device
         self.d_model = d_model * 2
         self.model_type = 'Transformer'
         self.pos_encoder = PositionalEncoding(d_model, dropout)
@@ -73,7 +76,7 @@ class Transformer_enc_dec(nn.Module):
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
 
 
-        self.y_mask = generate_square_subsequent_mask(100)
+        self.y_mask = generate_square_subsequent_mask(100).to(self.device)
         decoder_layers = TransformerDecoderLayer(self.d_model, nhead, batch_first=True)
         self.transformer_decoder = TransformerDecoder(decoder_layers, nlayers)
 
@@ -110,7 +113,8 @@ class Transformer_enc_dec(nn.Module):
 
         Sy = self.target_length # Should be 96
         
-        y_i = -torch.ones((src.shape[0],14))
+        y_i = -torch.ones((src.shape[0],14)).to(self.device)
+        # print("y_i", y_i.device)
         y_i = y_i.unsqueeze(1)
         y_hat = torch.empty((src.shape[0], Sy))
         for i in range(Sy):
@@ -119,6 +123,9 @@ class Transformer_enc_dec(nn.Module):
             # print("i", i)
             # print("y_i", y_i.shape)
             # print("y_mask", y_mask.shape)
+            # print("encoded_x", encoded_x.device)
+            # print("y_mask", y_mask.device)
+            # print("y_i", y_i.device)
             y_tmp = self.transformer_decoder(y_i, encoded_x, y_mask)
             # print("y_tmp", y_tmp.shape)
             y_i = torch.cat([y_i, y_tmp[:,-1,:].unsqueeze(1)], axis=1)

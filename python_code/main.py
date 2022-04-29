@@ -67,7 +67,6 @@ if __name__ == '__main__':
     data = None
 
     ######### COMMON PART ##########
-
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
     print("device", device)
     batch_size = args.batch_size
@@ -119,12 +118,14 @@ if __name__ == '__main__':
     elif rnn == TransformerModel:
         nhead = input_size 
         model = TransformerModel(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2)
-        src_mask = generate_square_subsequent_mask(seq_length).to(device)
+        src_mask = generate_square_subsequent_mask(seq_length)
+        src_mask = src_mask.to(device)
         print("src_mask", src_mask.shape)
     elif rnn == Transformer_enc_dec:
         nhead = input_size 
-        model = Transformer_enc_dec(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2)
-        src_mask = generate_square_subsequent_mask(seq_length).to(device)
+        model = Transformer_enc_dec(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2, device=device)
+        src_mask = generate_square_subsequent_mask(seq_length)
+        src_mask = src_mask.to(device)
         print("src_mask", src_mask.shape)
 
     else:
@@ -172,8 +173,9 @@ if __name__ == '__main__':
                     output = model(x_batch, src_mask)
                 else:
                     output = model(x_batch)
-                # print("output", output.shape)
-                
+                output = output.to(device)
+                # print("output", output.device)
+                # print("y_batch", y_batch.device)
                 # print(output.shape)
                 loss = F.mse_loss(output, y_batch)
                 optimizer.zero_grad()
@@ -210,6 +212,7 @@ if __name__ == '__main__':
                         output = model(x_batch, src_mask)
                     else:
                         output = model(x_batch)
+                    output = output.to(device)
                     # loss_valid = (output_i - y_batch_i)^2
                     # is a 2D Tensor
                     loss_valid = F.mse_loss(output, y_batch, reduction="none")
