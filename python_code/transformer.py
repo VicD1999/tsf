@@ -60,6 +60,51 @@ class TransformerModel(nn.Module):
         output = self.decoder(output)
         return output[:,:self.target_length,0]
 
+class TransformerModelWithoutMask(nn.Module):
+
+    def __init__(self, d_model: int, nhead: int, d_hid: int,
+                 nlayers: int, dropout: float = 0.5,
+                 target_length: int=96,
+                 device: str=None):
+        super().__init__()
+        self.d_model = d_model * 2
+        self.model_type = 'Transformer'
+        self.pos_encoder = PositionalEncoding(d_model, dropout)
+
+        encoder_layers = TransformerEncoderLayer(self.d_model, nhead, d_hid, dropout, batch_first=True)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
+        # self.encoder = nn.Embedding(ntoken, d_model)
+        
+        self.decoder = nn.Sequential(nn.Linear(self.d_model, self.d_model*16),
+                                      nn.ReLU(),
+                                      nn.Linear(self.d_model*16, 1),
+                                      nn.Sigmoid())
+
+        self.target_length = target_length
+
+
+    def forward(self, src: Tensor, src_mask: Tensor) -> Tensor:
+        """
+        Args:
+            src: Tensor, shape [seq_len, batch_size]
+            src_mask: Tensor, shape [seq_len, seq_len]
+
+        Returns:
+            output Tensor of shape [seq_len, batch_size, ntoken]
+        """
+        # print("src before sqrt", src.shape)
+        src = src * math.sqrt(self.d_model)
+        # print("src AFter sqrt", src.shape)
+        # print("BEFORE pos_encoder", src)
+        src = self.pos_encoder(src)
+        # print("AFTER pos_encoder", src.shape)
+        # print("src", src.shape)
+        # print("src_mask", src_mask.shape)
+        output = self.transformer_encoder(src)
+        # print("AFTER Transformer", output.shape)
+        output = self.decoder(output)
+        return output[:,:self.target_length,0]
+
 class Transformer_enc_dec(nn.Module):
 
     def __init__(self, d_model: int, nhead: int, d_hid: int,
@@ -180,27 +225,112 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class PytorchTransf(nn.Module):
+
+    def __init__(self, d_model: int, nhead: int, d_hid: int,
+                 nlayers: int, dropout: float = 0.5,
+                 target_length: int=96,
+                 device: str=None):
+        super().__init__()
+        self.device = device
+        self.d_model = d_model
+        self.model_type = 'Transformer'
+        
+
+        self.transformer = nn.Transformer(d_model=d_model, nhead=nhead, num_encoder_layers=nlayers, 
+                            num_decoder_layers=nlayers, dim_feedforward=2048, dropout=dropout, 
+                            activation=nn.ReLU(), custom_encoder=None, 
+                            custom_decoder=None, layer_norm_eps=1e-05, 
+                            batch_first=True, norm_first=False, device=device, dtype=None)
+
+        
+        self.decoder = nn.Sequential(nn.Linear(self.d_model, self.d_model*16),
+                                      nn.ReLU(),
+                                      nn.Linear(self.d_model*16, 1),
+                                      nn.Sigmoid())
 
 
+
+    def forward(self, src: Tensor, tgt: Tensor) -> Tensor:
+        """
+        Args:
+            src: Tensor, shape [batch_size, seq_len, d_model]
+            tgt: Tensor, shape [batch_size, output_seq_len, d_model]
+
+        Returns:
+            output Tensor of shape [batch_size, outpu_seq_len]
+        """
+        # print("src before sqrt", src.shape)
+        output = torch.empty((tgt.shape[0], tgt.shape[1]))
+        for i in range(tgt.shape[1]):
+            tgt = self.transformer(src, tgt[:i])
+            y_hat = self.decoder(y_hat)
+
+            
+        return y_hat
 
 
 if __name__ == "__main__":
     print(torch.__version__)
-    seq_length = 240
-    batch_size = 8
-    
-    head_dim = 32
-    d_model = nhead = 7 # nhead * head_dim
-    d_hid=2048
-    nlayers=3
-    dropout=0.5
-    model = Transformer_enc_dec(d_model=d_model, nhead=nhead, d_hid=d_hid,
-                        nlayers=nlayers, dropout=dropout)
-    x = torch.rand((batch_size, seq_length, d_model))
-    print("x", x.shape)
-    src_mask = generate_square_subsequent_mask(seq_length) # .to(device)
-    print("src_mask", src_mask.shape)
-    output = model(x, src_mask)
-    print("output", output.shape)
-    # print("model:", model)
-    
+    forecasting = False
+    if forecasting:
+        # ENNCODER DECODER PARAMETERS
+        # seq_length = 240
+        # batch_size = 8
+        
+        # head_dim = 32
+        # d_model = nhead = 7 # nhead * head_dim
+        # d_hid= 2048 * 2
+        # nlayers=8
+        # dropout=0.5
+        # model = Transformer_enc_dec(d_model=d_model, nhead=nhead, d_hid=d_hid,
+        #                     nlayers=nlayers, dropout=dropout)
+
+        # TRANSFORMER PARAMETERS
+        seq_length = 240
+        batch_size = 8
+        
+        head_dim = 32
+        d_model = nhead = 7 # nhead * head_dim
+        d_hid= 4096 + 512
+        nlayers= 10
+        dropout=0.5
+
+        # model = TransformerModel(d_model=d_model, nhead=nhead, d_hid=d_hid, nlayers=nlayers, dropout=0.2)
+        model = TransformerModelWithoutMask(d_model=d_model, nhead=nhead, d_hid=d_hid, nlayers=nlayers, dropout=0.2)
+                
+        # seq_length = 240
+        # batch_size = 8
+        
+        # head_dim = 32
+        # d_model = nhead = 7 # nhead * head_dim
+        # d_hid= 4096 + 512
+        # nlayers= 6
+        # dropout=0.5
+
+        # model = PytorchTransf(d_model=d_model, nhead=nhead, d_hid=d_hid, nlayers=nlayers, dropout=0.2)
+
+        # x = torch.rand((batch_size, 96+48, d_model))
+        # y = torch.rand((batch_size, 96, d_model))
+        # print("x", x.shape)
+        # Uncomment for TransformerModel and TransformerEncDec
+        x = torch.rand((batch_size, seq_length, d_model))
+        src_mask = generate_square_subsequent_mask(seq_length) # .to(device)
+        print("src_mask", src_mask.shape)
+        output = model(x, src_mask)
+        print("output", output.shape)
+
+        # output = model(x, y)
+        # print("output", output.shape)
+        torch.save(model.state_dict(), "model/transformer.model")
+        # print("model:", model)
+        
+    else:
+        seq_length = 240
+        batch_size = 8
+        
+        d_model = nhead = 7 # nhead * head_dim
+        
+        model = TemporalFusionTransformer()
+        x = torch.rand((batch_size, seq_length, d_model))
+        output = model(x)

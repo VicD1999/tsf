@@ -8,7 +8,7 @@ import os
 import util as u
 from model import LSTM, GRU, BRC, nBRC, simple_rnn, architecture, architecture_history_forecast
 from attention import Attention_Net
-from transformer import TransformerModel, Transformer_enc_dec, generate_square_subsequent_mask
+from transformer import TransformerModel, Transformer_enc_dec, generate_square_subsequent_mask, TransformerModelWithoutMask
 
 from torch.utils.data import TensorDataset, DataLoader
 import torch.nn.functional as F
@@ -61,7 +61,8 @@ if __name__ == '__main__':
             "architecture":architecture, 
             "architecture_history_forecast":architecture_history_forecast,
             "TransformerModel": TransformerModel,
-            "Transformer_enc_dec": Transformer_enc_dec}
+            "Transformer_enc_dec": Transformer_enc_dec,
+            "TransformerModelWithoutMask": TransformerModelWithoutMask}
 
     model_training = args.training
     data = None
@@ -115,9 +116,9 @@ if __name__ == '__main__':
     elif rnn == architecture_history_forecast:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
             output_size=output_size, histo_length=history_size, gap_length=gap)
-    elif rnn == TransformerModel:
+    elif rnn == TransformerModel or rnn == TransformerModelWithoutMask:
         nhead = input_size 
-        model = TransformerModel(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2)
+        model = rnn(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2)
         src_mask = generate_square_subsequent_mask(seq_length)
         src_mask = src_mask.to(device)
         print("src_mask", src_mask.shape)
@@ -169,7 +170,7 @@ if __name__ == '__main__':
                 # print(x_batch.shape)
                 # print(y_batch.shape)
                 x_batch, y_batch = x_batch.to(device), y_batch.to(device)
-                if rnn == TransformerModel or rnn == Transformer_enc_dec:
+                if rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask:
                     output = model(x_batch, src_mask)
                 else:
                     output = model(x_batch)
@@ -208,7 +209,7 @@ if __name__ == '__main__':
             with torch.no_grad():
                 for x_batch, y_batch in val_loader:
                     x_batch, y_batch = x_batch.to(device), y_batch.to(device)
-                    if rnn == TransformerModel or rnn == Transformer_enc_dec:
+                    if rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask:
                         output = model(x_batch, src_mask)
                     else:
                         output = model(x_batch)
@@ -260,7 +261,7 @@ if __name__ == '__main__':
 
         losses_train = None
         for x_batch, y_batch in train_loader:
-            if rnn == TransformerModel or rnn == Transformer_enc_dec:
+            if rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask:
                 output = model(x_batch, src_mask)
             else:
                 output = model(x_batch)
@@ -269,6 +270,7 @@ if __name__ == '__main__':
                 rmse_tensor = torch.sqrt(torch.mean(loss_train,axis=1)) #  torch.mean(loss_train, dim=1)
                 losses_train = rmse_tensor if losses_train is None else \
                                torch.cat((losses_train, rmse_tensor), dim=0)
+
         print(f"RMSE TRAIN: {torch.mean(losses_train):.4f} \pm {torch.std(losses_train):.4f}")
         best = torch.argmin(losses_train)
         print("Best", best)
@@ -277,10 +279,9 @@ if __name__ == '__main__':
         for idx in indexes:
             u.plot_results(model, X_train[idx,:,:], y_train[idx,:], save_path=f"results/figure/{args.rnn}_{idx}_train.png", src_mask=src_mask)
 
-
         losses_train = None
         for x_batch, y_batch in val_loader:
-            if rnn == TransformerModel or rnn == Transformer_enc_dec:
+            if rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask:
                 output = model(x_batch, src_mask)
             else:
                 output = model(x_batch)
@@ -291,7 +292,7 @@ if __name__ == '__main__':
                 print("rmse_tensor", rmse_tensor.shape)
                 losses_train = rmse_tensor if losses_train is None else \
                                torch.cat((losses_train, rmse_tensor), dim=0)
-            break
+
         print(f"RMSE VALID: {torch.mean(losses_train):.4f} \pm {torch.std(losses_train):.4f}")
         best = torch.argmin(losses_train)
         print("Best", best)
