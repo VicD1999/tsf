@@ -13,7 +13,8 @@ from transformer import (TransformerModel,
                          generate_square_subsequent_mask, 
                          TransformerModelWithoutMask,
                          PytorchTransf,
-                         TestTransf)
+                         TestTransf,
+                         Transformer)
 
 from torch.utils.data import TensorDataset, DataLoader
 import torch.nn.functional as F
@@ -69,7 +70,8 @@ if __name__ == '__main__':
             "Transformer_enc_dec": Transformer_enc_dec,
             "TransformerModelWithoutMask": TransformerModelWithoutMask,
             "PytorchTransf": PytorchTransf,
-            "TestTransf": TestTransf}
+            "TestTransf": TestTransf,
+            "Transformer": Transformer}
 
     model_training = args.training
     data = None
@@ -114,7 +116,7 @@ if __name__ == '__main__':
     seq_length = X_train.shape[1]
 
     rnn = rnns[args.rnn]
-    isTransformer = (rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask or rnn == PytorchTransf)
+    isTransformer = (rnn == Transformer) # (rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask or rnn == PytorchTransf)
 
     src_mask = None
     if rnn == architecture:
@@ -140,7 +142,8 @@ if __name__ == '__main__':
     elif rnn == TestTransf:
         nhead = input_size
         model = TestTransf(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2, device=device)
-
+    elif rnn == Transformer:
+        model = Transformer(d_model=input_size, nlayers=num_layers, d_hid=hidden_size, device=device)
     else:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
                      seq_length=seq_length, output_size=output_size)
@@ -187,7 +190,7 @@ if __name__ == '__main__':
                 # print(y_batch.shape)
                 x_batch, y_batch = x_batch.to(device), y_batch.to(device)
                 if isTransformer:
-                    output = model(x_batch, src_mask)
+                    output = model(x_batch, y_batch)
                 else:
                     output = model(x_batch)
                 output = output.to(device)
@@ -227,7 +230,7 @@ if __name__ == '__main__':
                 for x_batch, y_batch in val_loader:
                     x_batch, y_batch = x_batch.to(device), y_batch.to(device)
                     if isTransformer:
-                        output = model(x_batch, src_mask)
+                        output = model.predict(x_batch)
                     else:
                         output = model(x_batch)
                     output = output.to(device)
@@ -280,8 +283,8 @@ if __name__ == '__main__':
         losses_train = None
         for x_batch, y_batch in train_loader:
             x_batch, y_batch = x_batch.to(device), y_batch.to(device)
-            if rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask:
-                output = model(x_batch, src_mask)
+            if isTransformer:
+                output = model.predict(x_batch)
             else:
                 output = model(x_batch)
             with torch.no_grad():
@@ -301,8 +304,8 @@ if __name__ == '__main__':
         losses_train = None
         for x_batch, y_batch in val_loader:
             x_batch, y_batch = x_batch.to(device), y_batch.to(device)
-            if rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask:
-                output = model(x_batch, src_mask)
+            if isTransformer:
+                output = model.predict(x_batch)
             else:
                 output = model(x_batch)
             with torch.no_grad():

@@ -16,108 +16,6 @@ import matplotlib.pyplot as plt
 # Inspired by the pytorch tutorial: https://pytorch.org/tutorials/beginner/transformer_tutorial.html
 
 
-class Transformer(nn.Module):
-    """
-    Class from: https://medium.com/analytics-vidhya/implementing-transformer-from-scratch-in-pytorch-8c872a3044c9
-    Classic Transformer that both encodes and decodes.
-    
-    Prediction-time inference is done greedily.
-    NOTE: start token is hard-coded to be 0, end token to be 1. If changing, update predict() accordingly.
-    """
-
-    def __init__(self, nlayers: int, max_output_length: int=300, d_model: int = 7, device: str=None):
-        super().__init__()
-
-        # Parameters
-        self.d_model = d_model + 2
-        self.max_output_length = max_output_length
-        self.device = device
-        nhead = self.d_model
-        dim_feedforward = dim
-
-        # Encoder part
-        self.pos_encoder = PositionalEncoding(d_model=self.d_model)
-        self.transformer_encoder = nn.TransformerEncoder(
-            encoder_layer=nn.TransformerEncoderLayer(d_model=self.d_model, nhead=nhead, dim_feedforward=dim_feedforward, batch_first=True),
-            num_layers=nlayers
-        )
-
-        # Decoder part
-        self.y_mask = generate_square_subsequent_mask(self.max_output_length)
-        self.transformer_decoder = nn.TransformerDecoder(
-            decoder_layer=nn.TransformerDecoderLayer(d_model=self.d_model, nhead=nhead, dim_feedforward=dim_feedforward, batch_first=True),
-            num_layers=nlayers
-        )
-        self.fc = nn.Linear(self.d_model, 1)
-
-        # It is empirically important to initialize weights properly
-        self.init_weights()
-    
-    def init_weights(self):
-        initrange = 0.1
-        self.embedding.weight.data.uniform_(-initrange, initrange)
-        self.fc.bias.data.zero_()
-        self.fc.weight.data.uniform_(-initrange, initrange)
-      
-    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        """
-        Input
-            x: (B, Sx) with elements in (0, C) where C is num_classes
-            y: (B, Sy) with elements in (0, C) where C is num_classes
-        Output
-            (B, C, Sy) logits
-        """
-        encoded_x = self.encode(x)  # (Sx, B, E)
-        output = self.decode(y, encoded_x)  # (Sy, B, C)
-        return output.permute(1, 2, 0)  # (B, C, Sy)
-
-    def encode(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Input
-            x: (B, Sx) with elements in (0, C) where C is num_classes
-        Output
-            (Sx, B, E) embedding
-        """
-        x = self.pos_encoder(x)  # (Sx, B, E)
-        x = self.transformer_encoder(x)  # (Sx, B, E)
-        return x
-
-    def decode(self, y: torch.Tensor, encoded_x: torch.Tensor) -> torch.Tensor:
-        """
-        Input
-            encoded_x: (Sx, B, E)
-            y: (B, Sy) with elements in (0, C) where C is num_classes
-        Output
-            (Sy, B, C) logits
-        """
-        y = self.pos_encoder(y)  # (Sy, B, E)
-        Sy = y.shape[0]
-        y_mask = self.y_mask[:Sy, :Sy].type_as(encoded_x)  # (Sy, Sy)
-        output = self.transformer_decoder(y, encoded_x, y_mask)  # (Sy, B, E)
-        output = self.fc(output)  # (Sy, B, C)
-        return output
-
-    def predict(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Method to use at inference time. Predict y from x one token at a time. This method is greedy
-        decoding. Beam search can be used instead for a potential accuracy boost.
-        Input
-            x: (B, Sx) with elements in (0, C) where C is num_classes
-        Output
-            (B, C, Sy) logits
-        """
-        encoded_x = self.encode(x)
-        
-        output_tokens = (torch.ones((x.shape[0], self.max_output_length))).type_as(x).long() # (B, max_length)
-        output_tokens[:, 0] = 0  # Set start token
-        for Sy in range(1, self.max_output_length):
-            y = output_tokens[:, :Sy]  # (B, Sy)
-            output = self.decode(y, encoded_x)  # (Sy, B, C)
-            output = torch.argmax(output, dim=-1)  # (Sy, B)
-            output_tokens[:, Sy] = output[-1:]  # Set the last output token
-        return output_tokens
-
-
 
 class TransformerModel(nn.Module):
 
@@ -164,50 +62,50 @@ class TransformerModel(nn.Module):
         output = self.decoder(output)
         return output[:,:self.target_length,0]
 
-# class TransformerModelWithoutMask(nn.Module):
+class TransformerModelWithoutMask(nn.Module):
 
-#     def __init__(self, d_model: int, nhead: int, d_hid: int,
-#                  nlayers: int, dropout: float = 0.5,
-#                  target_length: int=96,
-#                  device: str=None):
-#         super().__init__()
-#         self.d_model = d_model * 2
-#         self.model_type = 'Transformer'
-#         self.pos_encoder = PositionalEncoding(d_model, dropout)
+    def __init__(self, d_model: int, nhead: int, d_hid: int,
+                 nlayers: int, dropout: float = 0.5,
+                 target_length: int=96,
+                 device: str=None):
+        super().__init__()
+        self.d_model = d_model * 2
+        self.model_type = 'Transformer'
+        self.pos_encoder = PositionalEncoding(d_model, dropout)
 
-#         encoder_layers = TransformerEncoderLayer(self.d_model, nhead, d_hid, dropout, batch_first=True)
-#         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-#         # self.encoder = nn.Embedding(ntoken, d_model)
+        encoder_layers = TransformerEncoderLayer(self.d_model, nhead, d_hid, dropout, batch_first=True)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
+        # self.encoder = nn.Embedding(ntoken, d_model)
         
-#         self.decoder = nn.Sequential(nn.Linear(self.d_model, self.d_model*16),
-#                                       nn.ReLU(),
-#                                       nn.Linear(self.d_model*16, 1),
-#                                       nn.Sigmoid())
+        self.decoder = nn.Sequential(nn.Linear(self.d_model, self.d_model*16),
+                                      nn.ReLU(),
+                                      nn.Linear(self.d_model*16, 1),
+                                      nn.Sigmoid())
 
-#         self.target_length = target_length
+        self.target_length = target_length
 
 
-#     def forward(self, src: Tensor, src_mask: Tensor) -> Tensor:
-#         """
-#         Args:
-#             src: Tensor, shape [seq_len, batch_size]
-#             src_mask: Tensor, shape [seq_len, seq_len]
+    def forward(self, src: Tensor, src_mask: Tensor) -> Tensor:
+        """
+        Args:
+            src: Tensor, shape [seq_len, batch_size]
+            src_mask: Tensor, shape [seq_len, seq_len]
 
-#         Returns:
-#             output Tensor of shape [seq_len, batch_size, ntoken]
-#         """
-#         # print("src before sqrt", src.shape)
-#         src = src * math.sqrt(self.d_model)
-#         # print("src AFter sqrt", src.shape)
-#         # print("BEFORE pos_encoder", src)
-#         src = self.pos_encoder(src)
-#         # print("AFTER pos_encoder", src.shape)
-#         # print("src", src.shape)
-#         # print("src_mask", src_mask.shape)
-#         output = self.transformer_encoder(src)
-#         # print("AFTER Transformer", output.shape)
-#         output = self.decoder(output)
-#         return output[:,:self.target_length,0]
+        Returns:
+            output Tensor of shape [seq_len, batch_size, ntoken]
+        """
+        # print("src before sqrt", src.shape)
+        src = src * math.sqrt(self.d_model)
+        # print("src AFter sqrt", src.shape)
+        # print("BEFORE pos_encoder", src)
+        src = self.pos_encoder(src)
+        # print("AFTER pos_encoder", src.shape)
+        # print("src", src.shape)
+        # print("src_mask", src_mask.shape)
+        output = self.transformer_encoder(src)
+        # print("AFTER Transformer", output.shape)
+        output = self.decoder(output)
+        return output[:,:self.target_length,0]
 
 class Transformer_enc_dec(nn.Module):
 
@@ -295,57 +193,57 @@ def generate_square_subsequent_mask(sz: int) -> Tensor:
     return torch.triu(torch.ones(sz, sz) * float('-inf'), diagonal=1)
 
 
-# class PytorchTransf(nn.Module):
+class PytorchTransf(nn.Module):
 
-#     def __init__(self, d_model: int, nhead: int, d_hid: int,
-#                  nlayers: int, dropout: float = 0.5,
-#                  target_length: int=96,
-#                  device: str=None):
-#         super().__init__()
-#         self.device = device
-#         self.d_model = d_model
-#         self.model_type = 'Transformer'
-#         self.target_length = target_length
+    def __init__(self, d_model: int, nhead: int, d_hid: int,
+                 nlayers: int, dropout: float = 0.5,
+                 target_length: int=96,
+                 device: str=None):
+        super().__init__()
+        self.device = device
+        self.d_model = d_model
+        self.model_type = 'Transformer'
+        self.target_length = target_length
 
-#         self.transformer = nn.Transformer(d_model=d_model, nhead=nhead, num_encoder_layers=nlayers, 
-#                             num_decoder_layers=nlayers, dim_feedforward=2048, dropout=dropout, 
-#                             activation=nn.ReLU(), custom_encoder=None, 
-#                             custom_decoder=None, layer_norm_eps=1e-05, 
-#                             batch_first=True, norm_first=False, device=device, dtype=None)
+        self.transformer = nn.Transformer(d_model=d_model, nhead=nhead, num_encoder_layers=nlayers, 
+                            num_decoder_layers=nlayers, dim_feedforward=2048, dropout=dropout, 
+                            activation=nn.ReLU(), custom_encoder=None, 
+                            custom_decoder=None, layer_norm_eps=1e-05, 
+                            batch_first=True, norm_first=False, device=device, dtype=None)
 
         
-#         self.decoder = nn.Sequential(nn.Linear(self.d_model, self.d_model*16),
-#                                       nn.ReLU(),
-#                                       nn.Linear(self.d_model*16, 1),
-#                                       nn.Sigmoid())
+        self.decoder = nn.Sequential(nn.Linear(self.d_model, self.d_model*16),
+                                      nn.ReLU(),
+                                      nn.Linear(self.d_model*16, 1),
+                                      nn.Sigmoid())
 
 
 
-#     def forward(self, src: Tensor) -> Tensor:
-#         """
-#         Args:
-#             src: Tensor, shape [batch_size, seq_len, d_model]
-#             tgt: Tensor, shape [batch_size, output_seq_len, d_model]
+    def forward(self, src: Tensor) -> Tensor:
+        """
+        Args:
+            src: Tensor, shape [batch_size, seq_len, d_model]
+            tgt: Tensor, shape [batch_size, output_seq_len, d_model]
 
-#         Returns:
-#             output Tensor of shape [batch_size, outpu_seq_len]
-#         """
-#         # print("src before sqrt", src.shape)
-#         # output = torch.empty((tgt.shape[0], tgt.shape[1]))
-#         batch_size = src.shape[0]
-#         d_model = src.shape[2]
-#         tgt_i_1 = torch.zeros((batch_size, 1, d_model))
-#         for i in range(self.target_length):
-#             # print("src", src.shape)
-#             # print("tgt", tgt[:,:i+1].shape)
-#             tgt_i_1 = self.transformer(src, tgt_i_1)
-#             print("tgt_i_1", tgt_i_1.shape)
-#         # print("y_hat after transformer", y_hat.shape)
-#         y_hat = self.decoder(tgt_i_1[:,:-self.target_length,:])
-#         # print("y_hat", y_hat.shape)
-#         # output[:,i] = y_hat
+        Returns:
+            output Tensor of shape [batch_size, outpu_seq_len]
+        """
+        # print("src before sqrt", src.shape)
+        # output = torch.empty((tgt.shape[0], tgt.shape[1]))
+        batch_size = src.shape[0]
+        d_model = src.shape[2]
+        tgt_i_1 = torch.zeros((batch_size, 1, d_model))
+        for i in range(self.target_length):
+            # print("src", src.shape)
+            # print("tgt", tgt[:,:i+1].shape)
+            tgt_i_1 = self.transformer(src, tgt_i_1)
+            print("tgt_i_1", tgt_i_1.shape)
+        # print("y_hat after transformer", y_hat.shape)
+        y_hat = self.decoder(tgt_i_1[:,:-self.target_length,:])
+        # print("y_hat", y_hat.shape)
+        # output[:,i] = y_hat
 
-#         return y_hat.squeeze(2)
+        return y_hat.squeeze(2)
 
 class PositionalEncoding(nn.Module):
 
@@ -385,6 +283,7 @@ class PositionalEncoding(nn.Module):
         cat1 = self.sin[:x.shape[1]].unsqueeze(0).expand(x.shape[0], x.shape[1], 1)
         # print("cat1", cat1.shape)
         cat2 = self.cos[:x.shape[1]].unsqueeze(0).expand(x.shape[0], x.shape[1], 1)
+        # print("x, cat1, cat2", x.device, cat1.device, cat2.device)
         # print("cat2", cat2.shape)
         x = torch.cat((x, cat1, cat2), dim=2)
 
@@ -435,6 +334,143 @@ class TestTransf(nn.Module):
         return output[:,:self.target_length,0]
 
 
+class Transformer(nn.Module):
+    """
+    Class from: https://medium.com/analytics-vidhya/implementing-transformer-from-scratch-in-pytorch-8c872a3044c9
+    Classic Transformer that both encodes and decodes.
+    
+    Prediction-time inference is done greedily.
+    NOTE: start token is hard-coded to be 0, end token to be 1. If changing, update predict() accordingly.
+    """
+
+    def __init__(self, nlayers: int, d_hid: int, max_output_length: int=300, d_model: int = 7, device: str=None):
+        super().__init__()
+
+        # Parameters
+        self.d_model = d_model + 2
+        self.d_hid = d_hid
+        self.max_output_length = max_output_length
+        self.device = device
+        nhead = self.d_model
+        dim_feedforward = self.d_model
+
+        # Encoder part
+        self.pos_encoder = PositionalEncoding(d_model=self.d_model, device=device)
+        self.transformer_encoder = nn.TransformerEncoder(
+            encoder_layer=nn.TransformerEncoderLayer(d_model=self.d_model, nhead=nhead, dim_feedforward=self.d_hid, batch_first=True),
+            num_layers=nlayers
+        )
+
+        # Decoder part
+        self.y_mask = generate_square_subsequent_mask(self.max_output_length).to(device)
+        # print("mask", self.y_mask)
+        self.transformer_decoder = nn.TransformerDecoder(
+            decoder_layer=nn.TransformerDecoderLayer(d_model=self.d_model, nhead=nhead, dim_feedforward=self.d_hid, batch_first=True),
+            num_layers=nlayers
+        )
+        self.fc = nn.Linear(self.d_model, 1)
+
+        # It is empirically important to initialize weights properly
+        self.init_weights()
+    
+    def init_weights(self):
+        initrange = 0.1
+        self.fc.bias.data.zero_()
+        self.fc.weight.data.uniform_(-initrange, initrange)
+      
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """
+        Input
+            x: (B, Sx) with elements in (0, C) where C is num_classes
+            y: (B, Sy) with elements in (0, C) where C is num_classes
+        Output
+            (B, C, Sy) logits
+        """
+        x, first_token, forecast = x[:,:-97,:], x[:,-97,:], x[:,-96:,:]
+        # print("forecast before", forecast)
+        forecast[:,:,-1] = y 
+        forecast = torch.cat((first_token.unsqueeze(1), forecast), dim=1)
+        # print("forecast", forecast.shape)
+        encoded_x = self.encode(x)  # (Sx, B, E)
+        # print("encoded_x should be (B, Sx, E)", encoded_x.shape)
+        output = self.decode(forecast, encoded_x)  # (Sy, B, C)
+        # print("output", output.shape)
+        return output[:,-96:] # (B, C, Sy)
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Input
+            x: (B, Sx) with elements in (0, C) where C is num_classes
+        Output
+            (Sx, B, E) embedding
+        """
+        x = self.pos_encoder(x)  # (Sx, B, E)
+        # print("pos_encoder must be (B, Sx, E)", x.shape)
+        x = self.transformer_encoder(x)  # (Sx, B, E)
+        # print("Transformer encoder (B, Sx, E)", x.shape)
+        return x
+
+    def decode(self, y: torch.Tensor, encoded_x: torch.Tensor) -> torch.Tensor:
+        """
+        Input
+            encoded_x: (Sx, B, E)
+            y: (B, Sy) with elements in (0, C) where C is num_classes
+        Output
+            (Sy, B, C) logits
+        """
+        y = self.pos_encoder(y)  # (Sy, B, E)
+        # print("y (B, Sy, E)", y.shape)
+        Sy = y.shape[1]
+        y_mask = self.y_mask[:Sy, :Sy].type_as(encoded_x)  # (Sy, Sy)
+        output = self.transformer_decoder(y, encoded_x, y_mask)  # (Sy, B, E)
+        output = self.fc(output)  # (Sy, B, C)
+        return output.squeeze(2)
+
+    def predict(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Method to use at inference time. Predict y from x one token at a time. This method is greedy
+        decoding. Beam search can be used instead for a potential accuracy boost.
+        Input
+            x: (B, Sx) with elements in (0, C) where C is num_classes
+        Output
+            (B, C, Sy) logits
+        """
+
+        x, first_token, forecast = x[:,:-97,:], x[:,-97,:], x[:,-96:,:]
+        # print("forecast before", forecast)
+        
+        # print("forecast", forecast.shape)
+        encoded_x = self.encode(x)  # (Sx, B, E)
+        # print("encoded_x should be (B, Sx, E)", encoded_x.shape)
+        # forecast[:,:,-1] = y 
+        for Sy in range(96):
+            y = torch.cat((first_token.unsqueeze(1), forecast[:,:Sy,:]), dim=1)
+            # print("y", y.shape)
+            output = self.decode(y, encoded_x)  # (Sy, B, C)
+            # print("output", output.shape)
+            # print("forecast[:,Sy,-1]", forecast[:,Sy,-1].shape)
+            forecast[:,Sy,-1] = output[:,-1]
+        # print("output", output.shape)
+        return output # (B, C, Sy)
+
+
+        # ## PREVIOUS WORKING VERSION
+        # x, forecast = x[:,:-96,:], x[:,-96:,:]
+        # encoded_x = self.encode(x)
+        
+        # output_tokens = (torch.ones((x.shape[0], self.max_output_length))).type_as(x).long() # (B, max_length)
+        # output_tokens[:, 0] = 0  # Set start token
+        # for Sy in range(1, 97):
+        #     y = forecast[:, :Sy]
+        #     y[:,:,-1] = output_tokens[:, :Sy]  # (B, Sy)
+
+        #     output = self.decode(y, encoded_x)  # (Sy, B, C)
+        #     # print("output (B, Sy, C)", output.shape)
+        #     # output = torch.argmax(output, dim=-1)  # (Sy, B)
+        #     output_tokens[:, Sy] = output[:,-1]  # Set the last output token
+        #     # print("output_tokens", output_tokens.shape)
+        # return output_tokens[:,1:97]
+
 
 if __name__ == "__main__":
     print(torch.__version__)
@@ -466,13 +502,13 @@ if __name__ == "__main__":
 
 
     # model = TestTransf(d_model=7, nhead=7, d_hid=2048, nlayers=10, dropout=0.5, target_length=96, device=device)
-    model = Transformer_enc_dec(d_model=7, nhead=9, d_hid=2048,
-                                nlayers=10, dropout=0.2, device=device)
+    # model = Transformer_enc_dec(d_model=7, nhead=9, d_hid=2048,
+    #                             nlayers=10, dropout=0.2, device=device)
+    model = Transformer(d_model=7, nlayers=4, d_hid=128, max_output_length=300, device=device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
-
-    for e in range(0, 200):
+    for e in range(0, 500):
         mean_loss = 0.
 
         losses_train = None
@@ -480,7 +516,7 @@ if __name__ == "__main__":
             # print(x_batch.shape)
             # print(y_batch.shape)
             x_batch, y_batch = x_batch.to(device), y_batch.to(device)
-            output = model(x_batch)
+            output = model(x_batch, y_batch)
             output = output.to(device)
             loss = F.mse_loss(output, y_batch)
             optimizer.zero_grad()
@@ -496,8 +532,15 @@ if __name__ == "__main__":
 
         print(f"epoch {e} loss {mean_loss}")
 
-        torch.save(model.state_dict(), 
-                   "model/test.model")
+    with torch.no_grad():
+        for x_batch, y_batch in train_loader:
+            output = model.predict(x_batch)
+            loss = F.mse_loss(output, y_batch)
+        print("loss", loss.item())
+    # print("output", output.shape)
+
+    torch.save(model.state_dict(), 
+               "model/test.model")
             
 
 
