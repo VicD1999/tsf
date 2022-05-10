@@ -145,6 +145,10 @@ if __name__ == '__main__':
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
                      seq_length=seq_length, output_size=output_size)
 
+
+
+    path_csv = 'results/' + args.rnn + "_" + str(args.hidden_size) + '.csv'
+
     ### MODEL TRAINING ###
     if model_training:
 
@@ -161,12 +165,12 @@ if __name__ == '__main__':
                 os.mkdir("results")
 
         if not args.continue_training:
-            with open('results/' + args.rnn + '.csv', 'w') as f:
+            with open(path_csv, 'w') as f:
                 f.write('epoch,train_loss,valid_loss,time\n')
             restart_epoch = 0
 
         else:
-            df = pd.read_csv('results/' + args.rnn + '.csv')
+            df = pd.read_csv(path_csv)
             restart_epoch = len(df)
             del df
 
@@ -248,7 +252,7 @@ if __name__ == '__main__':
             duration = time.time() - start
 
             # Write Results
-            with open('results/' + args.rnn + '.csv', 'a') as f:
+            with open(path_csv, 'a') as f:
                 f.write('{},{},{},{}\n'.format(e + 1, mean_loss, 
                                                mean_loss_valid, duration))
 
@@ -264,16 +268,18 @@ if __name__ == '__main__':
 
         indexes = [0, 1, 2, 3]
 
-        df = pd.read_csv("results/" + args.rnn + ".csv")
+        df = pd.read_csv(path_csv)
         print(df)
-        u.plot_curve_losses(df, save_path=f"results/figure/{args.rnn}_curve_loss.png")
+        u.plot_curve_losses(df, save_path=f"results/figure/{args.rnn}_{args.hidden_size}_curve_loss.png")
         
-        model.load_state_dict(torch.load(f"model/{args.rnn}/{args.evaluation}.model", map_location=torch.device('cpu')), strict=False)
+        model.load_state_dict(torch.load(f"model/{args.rnn}/{args.evaluation}.model", map_location=torch.device("cpu")), strict=False)
+        model = model.to(device)
 
         rmse = RMSE(reduction="none")
 
         losses_train = None
         for x_batch, y_batch in train_loader:
+            x_batch, y_batch = x_batch.to(device), y_batch.to(device)
             if rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask:
                 output = model(x_batch, src_mask)
             else:
@@ -286,32 +292,33 @@ if __name__ == '__main__':
 
         print(f"RMSE TRAIN: {torch.mean(losses_train):.4f} \pm {torch.std(losses_train):.4f}")
         best = torch.argmin(losses_train)
-        print("Best", best)
-        u.plot_results(model, X_train[best,:,:], y_train[best,:], save_path=f"results/figure/{args.rnn}_best_train.png", src_mask=src_mask)
+        # # print("Best", best)
+        # # u.plot_results(model, X_train[best,:,:].to(device), y_train[best,:].to(device), save_path=f"results/figure/{args.rnn}_best_train.png", src_mask=src_mask)
 
-        for idx in indexes:
-            u.plot_results(model, X_train[idx,:,:], y_train[idx,:], save_path=f"results/figure/{args.rnn}_{idx}_train.png", src_mask=src_mask)
+        # for idx in indexes:
+        #     u.plot_results(model, X_train[idx,:,:].to(device), y_train[idx,:].to(device), save_path=f"results/figure/{args.rnn}_{idx}_train.png", src_mask=src_mask)
 
         losses_train = None
         for x_batch, y_batch in val_loader:
+            x_batch, y_batch = x_batch.to(device), y_batch.to(device)
             if rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask:
                 output = model(x_batch, src_mask)
             else:
                 output = model(x_batch)
             with torch.no_grad():
                 loss_train = rmse(output, y_batch)
-                print("loss_train", loss_train.shape)
+                # print("loss_train", loss_train.shape)
                 rmse_tensor = torch.sqrt(torch.mean(loss_train,axis=1))
-                print("rmse_tensor", rmse_tensor.shape)
+                # print("rmse_tensor", rmse_tensor.shape)
                 losses_train = rmse_tensor if losses_train is None else \
                                torch.cat((losses_train, rmse_tensor), dim=0)
 
         print(f"RMSE VALID: {torch.mean(losses_train):.4f} \pm {torch.std(losses_train):.4f}")
         best = torch.argmin(losses_train)
         print("Best", best)
-        u.plot_results(model, X_valid[best,:,:], y_valid[best,:], save_path=f"results/figure/{args.rnn}_best_valid.png", src_mask=src_mask)
-        for idx in indexes:
-            u.plot_results(model, X_valid[idx,:,:], y_valid[idx,:], save_path=f"results/figure/{args.rnn}_{idx}.png", src_mask=src_mask)
+        # u.plot_results(model, X_valid[best,:,:].to(device), y_valid[best,:].to(device), save_path=f"results/figure/{args.rnn}_best_valid.png", src_mask=src_mask)
+        # for idx in indexes:
+        #     u.plot_results(model, X_valid[idx,:,:].to(device), y_valid[idx,:].to(device), save_path=f"results/figure/{args.rnn}_{idx}.png", src_mask=src_mask)
 
     # if args.comparison:
     #     # Data Loading
