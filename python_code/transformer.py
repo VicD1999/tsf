@@ -103,7 +103,7 @@ class Transformer(nn.Module):
         return output[:,-self.target_length:,0] # [batch_size, target_length]
 
 
-class TransformerEncodeDecoder(nn.Module):
+class TransformerEncoderDecoder(nn.Module):
     """
     Class from: https://medium.com/analytics-vidhya/implementing-transformer-from-scratch-in-pytorch-8c872a3044c9
     Classic Transformer that both encodes and decodes.
@@ -266,7 +266,7 @@ if __name__ == "__main__":
     # model = Transformer(d_model=7, nhead=7, d_hid=2048, nlayers=10, dropout=0.5, target_length=96, device=device)
     # model = Transformer_enc_dec(d_model=7, nhead=9, d_hid=2048,
     #                             nlayers=10, dropout=0.2, device=device)
-    model = TransformerEncodeDecoder(d_model=7, nlayers=4, d_hid=128, max_output_length=300, device=device)
+    model = TransformerEncoderDecoder(d_model=7, nlayers=4, d_hid=128, max_output_length=300, device=device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
