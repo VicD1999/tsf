@@ -8,13 +8,7 @@ import os
 import util as u
 from model import LSTM, GRU, BRC, nBRC, simple_rnn, architecture, architecture_history_forecast
 from attention import Attention_Net
-from transformer import (TransformerModel, 
-                         Transformer_enc_dec, 
-                         generate_square_subsequent_mask, 
-                         TransformerModelWithoutMask,
-                         PytorchTransf,
-                         TestTransf,
-                         Transformer)
+from transformer import Transformer, TransformerEncoderDecoder
 
 from torch.utils.data import TensorDataset, DataLoader
 import torch.nn.functional as F
@@ -66,12 +60,8 @@ if __name__ == '__main__':
             "attn":Attention_Net, "simple_rnn":simple_rnn, 
             "architecture":architecture, 
             "architecture_history_forecast":architecture_history_forecast,
-            "TransformerModel": TransformerModel,
-            "Transformer_enc_dec": Transformer_enc_dec,
-            "TransformerModelWithoutMask": TransformerModelWithoutMask,
-            "PytorchTransf": PytorchTransf,
-            "TestTransf": TestTransf,
-            "Transformer": Transformer}
+            "Transformer": Transformer,
+            "TransformerEncoderDecoder":TransformerEncoderDecoder}
 
     model_training = args.training
     data = None
@@ -116,7 +106,7 @@ if __name__ == '__main__':
     seq_length = X_train.shape[1]
 
     rnn = rnns[args.rnn]
-    isTransformer = (rnn == Transformer) # (rnn == TransformerModel or rnn == Transformer_enc_dec or rnn == TransformerModelWithoutMask or rnn == PytorchTransf)
+    isTransformer = (rnn == TransformerEncoderDecoder)
 
     src_mask = None
     if rnn == architecture:
@@ -126,24 +116,10 @@ if __name__ == '__main__':
     elif rnn == architecture_history_forecast:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
             output_size=output_size, histo_length=history_size, gap_length=gap)
-    elif rnn == TransformerModel or rnn == TransformerModelWithoutMask:
-        nhead = input_size 
-        model = rnn(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2)
-        src_mask = generate_square_subsequent_mask(seq_length)
-        src_mask = src_mask.to(device)
-        print("src_mask", src_mask.shape)
-    elif rnn == Transformer_enc_dec:
-        nhead = input_size 
-        model = Transformer_enc_dec(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2, device=device)
-        src_mask = generate_square_subsequent_mask(seq_length)
-        src_mask = src_mask.to(device)
-        print("src_mask", src_mask.shape)
-
-    elif rnn == TestTransf:
-        nhead = input_size
-        model = TestTransf(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2, device=device)
     elif rnn == Transformer:
-        model = Transformer(d_model=input_size, nlayers=num_layers, d_hid=hidden_size, device=device)
+        model = rnn(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2, device=device)
+    elif rnn == TransformerEncoderDecoder:
+        model = rnn(d_model=input_size, nlayers=num_layers, d_hid=hidden_size, device=device)
     else:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
                      seq_length=seq_length, output_size=output_size)
