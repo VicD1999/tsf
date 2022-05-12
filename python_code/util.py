@@ -554,6 +554,8 @@ def plot_curve_losses(df, save_path=None):
     """
 
     plt.figure(figsize=(7,4))
+    n_epoch = len(df)
+    plt.xticks(range(0, n_epoch+1, n_epoch//10))
     plt.plot(df["train_loss"], label="Train Loss")
     plt.plot(df["valid_loss"], label="Validation Loss")
     plt.xlabel("Epoch")
@@ -590,9 +592,11 @@ def plot_results(model, X, y, save_path=None, sklearn=False, show=False, src_mas
         with torch.no_grad():
             X = X.unsqueeze(0)
             if src_mask is not None:
-                y_pred = model(X, src_mask).squeeze(0)
+                y_pred = model.predict(X).squeeze(0)
             else:
                 y_pred = model(X).squeeze(0)
+
+            y, y_pred = y.cpu(), y_pred.cpu()
             
             # print(F.mse_loss(y_pred, y))
         
