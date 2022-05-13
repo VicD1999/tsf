@@ -848,11 +848,13 @@ def load_sklearn_model(path_to_model):
 
 def simple_plot(forecast, truth, periods=24, save=None):
     x = np.arange(0,periods)
-    plt.figure()
-    plt.plot(x, forecast, label="Forecast")
-    plt.plot(x, truth, label="Truth")
-    plt.xlabel("Timestep")
-    plt.ylabel("Power Production")
+    plt.figure(figsize=(6,4))
+    plt.plot(truth, label="True values" )
+    plt.plot(forecast, label="Predicted values" )
+    plt.grid()
+    plt.xlabel("Timestamps")
+    plt.ylabel("Production Power Normalized")
+    plt.ylim((0,1))
     plt.legend()
     if save:
         plt.savefig(save, dpi=200)

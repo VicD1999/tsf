@@ -2,6 +2,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import os
 # from prophet import Prophet
 
 from sktime.performance_metrics.forecasting import MeanSquaredError
@@ -105,13 +106,17 @@ if __name__ == '__main__':
         print(f"rmse: {np.mean(losses):.2f} \pm {np.std(losses):.2f} \nrmse normalized {np.mean(losses):.2f} \pm {np.std(losses):.2f}")
 
         # PLOT
+
+        if not os.path.isdir(f"results/figure/naive/"):
+                os.mkdir(f"results/figure/naive/")
+
         best = np.argmin(losses)
         print(f"Best rmse: {losses[best]}")
-        simple_plot(truth=y[best] ,forecast=y_pred, periods=96, save="Images/naive_clim_valid_best.pdf")
+        simple_plot(truth=y[best] ,forecast=y_pred, periods=96, save="results/figure/naive/naive_clim_valid_best.pdf")
 
         worst = np.argmax(losses)
         print(f"Worst rmse: {losses[worst]}")
-        simple_plot(truth=y[worst] ,forecast=y_pred, periods=96, save="Images/naive_clim_valid_worst.pdf")
+        simple_plot(truth=y[worst] ,forecast=y_pred, periods=96, save="results/figure/naive/naive_clim_valid_worst.pdf")
         
         # Persistance
         y_pred = X[:,95,-1].reshape((-1,1)) * np.ones(shape=(X.shape[0], fh))
@@ -122,11 +127,11 @@ if __name__ == '__main__':
         # PLOT
         best = np.argmin(losses_valid)
         print(f"Best rmse: {losses_valid[best]}")
-        simple_plot(truth=y[best] ,forecast=y_pred[best], periods=96, save="Images/naive_persist_valid_best.pdf")
+        simple_plot(truth=y[best] ,forecast=y_pred[best], periods=96, save="results/figure/naive/naive_persist_valid_best.pdf")
 
         worst = np.argmax(losses_valid)
         print(f"Worst rmse: {losses_valid[worst]}")
-        simple_plot(truth=y[worst] ,forecast=y_pred[worst], periods=96, save="Images/naive_persist_valid_worst.pdf")
+        simple_plot(truth=y[worst] ,forecast=y_pred[worst], periods=96, save="results/figure/naive/naive_persist_valid_worst.pdf")
 
 
 
