@@ -1,5 +1,5 @@
 from util import rmse, get_dataset_sklearn, plot_results, load_sklearn_model, get_dataset_rnn, simple_plot
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 import numpy as np
 import pickle
 import os
@@ -23,9 +23,15 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_size', help='Eval model', 
                         type=str, default="small")
 
+    parser.add_argument('--model', help='Eval model', 
+                        type=str, default="RandomForestRegressor")
+
     args = parser.parse_args()
 
-    power_wind_farm = 30_000
+    models = {"RandomForestRegressor": RandomForestRegressor,
+              "ExtraTreesRegressor": ExtraTreesRegressor}
+
+    model = models[args.model]
 
     start = args.continue_training
 
@@ -36,24 +42,24 @@ if __name__ == '__main__':
             print("X", X.shape)
             print("y", y.shape)
 
-            rfr = RandomForestRegressor(n_estimators=50, criterion='squared_error', 
-                                        max_depth=None, min_samples_split=2, 
-                                        min_samples_leaf=1, min_weight_fraction_leaf=0.0, 
-                                        max_features='auto', max_leaf_nodes=None, 
-                                        min_impurity_decrease=0.0, bootstrap=True, 
-                                        oob_score=False, n_jobs=4, random_state=None, 
-                                        verbose=0, warm_start=False, 
-                                        ccp_alpha=0.0, max_samples=None)
+            rfr = model(n_estimators=50, criterion='squared_error', 
+                        max_depth=None, min_samples_split=2, 
+                        min_samples_leaf=1, min_weight_fraction_leaf=0.0, 
+                        max_features='auto', max_leaf_nodes=None, 
+                        min_impurity_decrease=0.0, bootstrap=True, 
+                        oob_score=False, n_jobs=4, random_state=None, 
+                        verbose=0, warm_start=False, 
+                        ccp_alpha=0.0, max_samples=None)
 
             if args.training:
                 rfr = rfr.fit(X, y)
 
                 # save
-                with open(f'model/RandomForest/rfr_{day}.pkl','wb') as f:
+                with open(f'model/{args.model}/{args.model}_{day}.pkl','wb') as f:
                     pickle.dump(rfr, f)
 
             else:
-                with open(f'model/RandomForest/rfr_{day}.pkl', 'rb') as f:
+                with open(f'model/{args.model}/{args.model}_{day}.pkl', 'rb') as f:
                     rfr = pickle.load(f)
 
             # y_hat = plot_results(model=rfr, 
@@ -62,7 +68,7 @@ if __name__ == '__main__':
             #                      sklearn=True, 
             #                      show=False)
 
-        print("rmse:", rmse(y_hat, y), "rmse normalized", rmse(y_hat, y)/power_wind_farm)
+        print("rmse:", rmse(y_hat, y))
 
 
     if args.evaluation:
@@ -92,7 +98,7 @@ if __name__ == '__main__':
                                        history_size=96, forecast_horizon=96, size=args.dataset_size)
             
             print("X_train", X_train.shape)
-            rfr = load_sklearn_model(path_to_model=f"model/RandomForest/rfr_{day}.pkl")        
+            rfr = load_sklearn_model(path_to_model=f"model/{args.model}/{args.model}_{day}.pkl")        
 
             Y_train[:,day] = rfr.predict(X_train)
             Y_valid[:,day] = rfr.predict(X_valid)
@@ -104,33 +110,33 @@ if __name__ == '__main__':
         y_train = Y_train_truth
         y_valid = Y_valid_truth
 
-        path_save_image = f"results/figure/randomForest/"
+        path_save_image = f"results/figure/{args.model}/"
         if not os.path.isdir(path_save_image):
             os.mkdir(path_save_image)
 
         losses_train = np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1)) # [rmse(Y_train[i,:],y_train[i,:fh]) for i in range(num_samples_train)] # np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1))
-        simple_plot(truth=y_train[0,:fh], forecast=Y_train[0], periods=fh, save=path_save_image + "random_forest_train.png")
-        print(f"rmse: {np.mean(losses_train):.4f} \pm {np.std(losses_train):.4f} \nrmse normalized {np.mean(losses_train)/power_wind_farm:.2f} \pm {np.std(losses_train)/power_wind_farm:.2f}")
+        simple_plot(truth=y_train[0,:fh], forecast=Y_train[0], periods=fh, save=path_save_image + f"{args.model}_train.png")
+        print(f"rmse: {np.mean(losses_train):.4f} \pm {np.std(losses_train):.4f}")
 
         losses_valid = np.sqrt(np.mean(np.square(Y_valid - y_valid[:,:fh]), axis=1)) # [rmse(Y_valid[i,:],y_valid[i,:fh]) for i in range(num_samples_valid)]# np.sqrt(np.mean(np.square(Y_valid - y_valid[:,:fh]), axis=1))
-        simple_plot(truth=y_valid[0,:fh], forecast=Y_valid[0], periods=fh, save=path_save_image + "random_forest_valid.png")
-        print(f"rmse: {np.mean(losses_valid):.4f} \pm {np.std(losses_valid):.4f} \nrmse normalized {np.mean(losses_valid)/power_wind_farm:.2f} \pm {np.std(losses_valid)/power_wind_farm:.2f}")
+        simple_plot(truth=y_valid[0,:fh], forecast=Y_valid[0], periods=fh, save=path_save_image + f"{args.model}_valid.png")
+        print(f"rmse: {np.mean(losses_valid):.4f} \pm {np.std(losses_valid):.4f}")
 
         best = np.argmin(losses_train)
         print(f"Best rmse: {losses_train[best]}")
-        simple_plot(truth=y_train[best,:fh], forecast=Y_train[best], periods=96, save=path_save_image + "random_forest_train_best.png")
+        simple_plot(truth=y_train[best,:fh], forecast=Y_train[best], periods=96, save=path_save_image + f"{args.model}_train_best.png")
 
         worst = np.argmax(losses_train)
         print("Worse index", worst)
         print(f"Worse rmse: {losses_train[worst]}")
-        simple_plot(truth=y_train[worst,:fh], forecast=Y_train[worst], periods=96, save=path_save_image + "random_forest_train_worst.png")
+        simple_plot(truth=y_train[worst,:fh], forecast=Y_train[worst], periods=96, save=path_save_image + f"{args.model}_train_worst.png")
 
         best = np.argmin(losses_valid)
         print(f"Best rmse: {losses_valid[best]}")
-        simple_plot(truth=y_valid[best,:fh], forecast=Y_valid[best], periods=96, save=path_save_image + "random_forest_valid_best.png")
+        simple_plot(truth=y_valid[best,:fh], forecast=Y_valid[best], periods=96, save=path_save_image + f"{args.model}_valid_best.png")
 
         worst = np.argmax(losses_valid)
         print(f"Worse rmse: {losses_valid[worst]}")
-        simple_plot(truth=y_valid[worst,:fh], forecast=Y_valid[worst], periods=96, save=path_save_image + "random_forest_valid_worst.png")
+        simple_plot(truth=y_valid[worst,:fh], forecast=Y_valid[worst], periods=96, save=path_save_image + f"{args.model}_valid_worst.png")
 
 
