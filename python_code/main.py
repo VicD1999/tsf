@@ -241,6 +241,8 @@ if __name__ == '__main__':
 
     ### MODEL EVALUATION ###
     if args.evaluation:
+        train_loader = DataLoader(train, batch_size=batch_size, shuffle=False, drop_last=False)
+        val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, drop_last=False)
         # Create tree structure
         if not os.path.isdir("results/figure/"):
             os.mkdir("results/figure/")
@@ -251,7 +253,7 @@ if __name__ == '__main__':
 
         df = pd.read_csv(path_csv)
         print(df)
-        u.plot_curve_losses(df, save_path=f"results/figure/{args.rnn}/{args.rnn}_{args.hidden_size}_curve_loss.png")
+        u.plot_curve_losses(df, save_path=f"results/figure/{args.rnn}/{args.rnn}_{args.hidden_size}_curve_loss.pdf")
         best_e = df["epoch"].iloc[df["valid_loss"].argmin()]
         
         print("Loading best model:", df[df["epoch"] == best_e])
@@ -280,10 +282,10 @@ if __name__ == '__main__':
         print(f"RMSE TRAIN: {torch.mean(losses_train):.4f} \pm {torch.std(losses_train):.4f}")
         best = torch.argmin(losses_train)
         print("Best", best)
-        u.plot_results(model, X_train[best,:,:].to(device), y_train[best,:].to(device), save_path=f"results/figure/{args.rnn}/{args.rnn}_best_train.png", src_mask=src_mask)
+        u.plot_results(model, X_train[best,:,:].to(device), y_train[best,:].to(device), save_path=f"results/figure/{args.rnn}/{args.rnn}_best_train.pdf", src_mask=src_mask)
 
         for idx in indexes:
-            u.plot_results(model, X_train[idx,:,:].to(device), y_train[idx,:].to(device), save_path=f"results/figure/{args.rnn}/{args.rnn}_{idx}_train.png", src_mask=src_mask)
+            u.plot_results(model, X_train[idx,:,:].to(device), y_train[idx,:].to(device), save_path=f"results/figure/{args.rnn}/{args.rnn}_{idx}_train.pdf", src_mask=src_mask)
 
         losses_train = None
         for x_batch, y_batch in val_loader:
@@ -302,11 +304,14 @@ if __name__ == '__main__':
 
         print(f"RMSE VALID: {torch.mean(losses_train):.4f} \pm {torch.std(losses_train):.4f}")
         best = torch.argmin(losses_train)
-        print("Best", best)
-        u.plot_results(model, X_valid[best,:,:].to(device), y_valid[best,:].to(device), save_path=f"results/figure/{args.rnn}/{args.rnn}_best_valid.png", src_mask=src_mask)
+        print("Best", best, losses_train[best])
+        u.plot_results(model, X_valid[best,:,:].to(device), y_valid[best,:].to(device), save_path=f"results/figure/{args.rnn}/{args.rnn}_best_valid.pdf", src_mask=src_mask)
+        worst = torch.argmax(losses_train)
+        print("worst", worst, losses_train[worst])
+        u.plot_results(model, X_valid[worst,:,:].to(device), y_valid[worst,:].to(device), save_path=f"results/figure/{args.rnn}/{args.rnn}_worst_valid.pdf", src_mask=src_mask)
         for idx in indexes:
-            u.plot_results(model, X_valid[idx,:,:].to(device), y_valid[idx,:].to(device), save_path=f"results/figure/{args.rnn}/{args.rnn}_{idx}_valid.png", src_mask=src_mask)
-
+            u.plot_results(model, X_valid[idx,:,:].to(device), y_valid[idx,:].to(device), save_path=f"results/figure/{args.rnn}/{args.rnn}_{idx}_valid.pdf", src_mask=src_mask)
+            print(idx, losses_train[idx] )
     # if args.comparison:
     #     # Data Loading
     #     day = 95
