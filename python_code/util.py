@@ -14,6 +14,7 @@ import torch
 import torch.nn.functional as F
 
 from sktime.performance_metrics.forecasting import MeanSquaredError
+from pytorch_forecasting.metrics import RMSE, MAE, SMAPE
 
 paths_ores = glob.glob("data/ORES/*.csv")
 paths_ores.sort()
@@ -37,9 +38,117 @@ cells = {"BRC": BRC,
          "LSTM": torch.nn.LSTM,
          "HybridRNN": HybridRNN}
 
+train_losses = {"MSE":RMSE(reduction="mean"), 
+                "MAE":MAE(reduction="mean"),
+                "SMAPE":SMAPE(reduction="mean")}
+
+def predict(model, data_loader, fh, device, transformer_with_decoder):
+    """
+    Warning if the data loader is big this function could be memory 
+    intensive
+    args:
+    -----
+        model: torch model
+        data_loader: DataLoader
+        fh: int forecasting horizon
+        device: 'cpu' or 'cuda:0' 
+        transformer_with_decoder: boolean
+
+    return:
+    -------
+        y_hat: Tensor of shape (len(data_loader, fh))
+    """
+    y_hat = None
+    for x_batch, y_batch in data_loader:
+        x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+        if transformer_with_decoder:
+            output = model.predict(x_batch)
+        else:
+            output = model(x_batch)
+
+        y_hat = output if y_hat is None else torch.cat((y_hat, output), dim=0)
+        
+    return y_hat
+
+
+def apply_metric(metrics, y_hat, y_truth, set_type, plot_bias=False):
+    """
+    args:
+        metrics: list of metrics to apply
+        y_hat: Tensor of shape (n_samples, fh) containing the
+               predictions of the model
+        y_truth: Tensor of shape (n_samples, fh) containing the ground 
+                 truth
+        set_type: string either train, valid or test
+    """
+    assert len(y_hat.shape) ==  len(y_truth.shape)
+    assert y_hat.shape[0] == y_truth.shape[0]
+    assert y_hat.shape[1] == y_truth.shape[1]
+
+    losses = {}
+    for metric in metrics:
+        metric_name = metric.__repr__()[:-2]
+        non_reduced = metric(y_hat, y_truth)
+
+        if metric_name == "RMSE":
+            reduced = torch.sqrt(torch.mean(non_reduced, axis=1))
+        else:
+            reduced = torch.mean(non_reduced, axis=1)
+        
+        print(f"{metric_name} {set_type}: {torch.mean(reduced):.4f} \pm {torch.std(reduced):.4f}")
+
+        losses[metric_name] = reduced
+
+    return losses
+
+def plot_best_worst_histo(model, X, y, losses, loss_name, set_type, model_name, transformer_with_decoder, device):
+    """
+    args:
+    -----
+    model: model to evaluate
+    X: Tensor of shape (n_samples, seq_length, nfeatures)
+    y: Tensor of shape (n_samples,  fh) containing the ground truth
+    losses: Tensor of shape (n_samples)
+    loss_name: str e.g.: RMSE, MAE, SMAPE
+    set_type: string either train, valid or test
+    model_name: string
+    transformer_with_decoder: boolean
+    device: either 'cpu' or 'cuda:0'
+    """
+    prefix_path=f"results/figure/{model_name}/{model_name}"
+    sufix_path=f"{loss_name}_{set_type}.pdf"
+    best = torch.argmin(losses)
+    plot_results(model, X[best,:,:].to(device), 
+                   y[best,:].to(device), 
+                   save_path=prefix_path+ f"_best_" + sufix_path, 
+                   transformer_with_decoder=transformer_with_decoder)
+    worst = torch.argmax(losses)
+    plot_results(model, X[worst,:,:].to(device), 
+                   y[worst,:].to(device), 
+                   save_path=prefix_path + f"_worst_" + sufix_path, 
+                   transformer_with_decoder=transformer_with_decoder)
+
+    plt.figure()
+    plt.hist(losses.unsqueeze(0).detach(), bins=30)
+    plt.xlabel(loss_name)
+    plt.ylabel("Nbr of occurences")
+    plt.savefig(prefix_path + f"_histo_" + sufix_path)
+    plt.close()
+
+
 def init_model(rnn, input_size, hidden_size, seq_length, output_size, 
                gap_length, histo_length, nhead, nlayers, device, cell_name):
-    
+    """
+    args:
+        rnn: model function
+        input_size, hidden_size, seq_length: 3 * int 
+        output_size, gap_length, histo_length: 3 * int
+        nhead, nlayers: 2 * int 
+        device: either cpu or gpu
+        cell_name: string ["BRC", "nBRC", "GRU", "LSTM", "HybridRNN"]
+    """
+    assert type(cell_name) == str or cell_name == None
+
     if rnn == architecture:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
                      seq_length=seq_length, output_size=output_size,
@@ -677,7 +786,7 @@ def plot_curve_losses(df, save_path=None):
     plt.savefig(save_path, dpi=200)
     # plt.show()
 
-def plot_results(model, X, y, save_path=None, sklearn=False, show=False, src_mask=None):
+def plot_results(model, X, y, save_path=None, sklearn=False, show=False, transformer_with_decoder=False):
     """ 
     Plot predicted results
 
@@ -690,6 +799,8 @@ def plot_results(model, X, y, save_path=None, sklearn=False, show=False, src_mas
                      Path where to save the figure
         - sklearn: boolean
                     whether it is a sklearn model or not 
+        - show: boolean 
+        - transformer_with_decoder: boolean
     Returns:
     --------
         - y_pred: the forecasted values
@@ -703,7 +814,7 @@ def plot_results(model, X, y, save_path=None, sklearn=False, show=False, src_mas
 
         with torch.no_grad():
             X = X.unsqueeze(0)
-            if src_mask is not None:
+            if transformer_with_decoder:
                 y_pred = model.predict(X).squeeze(0)
             else:
                 y_pred = model(X).squeeze(0)
