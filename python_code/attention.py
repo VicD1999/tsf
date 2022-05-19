@@ -1,7 +1,5 @@
 from torch.utils.data import TensorDataset, DataLoader
 
-import util as u
-
 import torch
 import torch.nn as nn
 from torch import optim
@@ -128,10 +126,8 @@ class Attention_Net(nn.Module):
         return y
 
 if __name__ == '__main__':
-    data = u.load_split_dataset(path="data/120_60.pkl")
-    batch_size = 32
-    X_train = torch.Tensor(data["X_train"])
-    y_train = torch.Tensor(data["y_train"])
+    X_train = torch.rand((32, 120, 5))
+    y_train = torch.rand((32, 20))
     train_set_len = X_train.shape[0]
     train = TensorDataset(X_train, y_train)
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)

@@ -8,6 +8,10 @@ import argparse
 
 
 if __name__ == '__main__':
+    models = {"RandomForestRegressor": RandomForestRegressor,
+              "ExtraTreesRegressor": ExtraTreesRegressor}
+
+
     parser = argparse.ArgumentParser()
     # Dataset args
     parser.add_argument('-t','--training', help='Train the model', 
@@ -24,23 +28,26 @@ if __name__ == '__main__':
                         type=str, default="small")
 
     parser.add_argument('--model', help='Eval model', 
-                        type=str, default="RandomForestRegressor")
+                        required=True,
+                        type=str, default="RandomForestRegressor", 
+                        choices=models.keys())
 
     args = parser.parse_args()
-
-    models = {"RandomForestRegressor": RandomForestRegressor,
-              "ExtraTreesRegressor": ExtraTreesRegressor}
 
     model = models[args.model]
 
     start = args.continue_training
 
+    if not os.path.isdir(f'model/{args.model}'):
+        os.mkdir(f'model/{args.model}')
+
     if args.training:
-        for day in range(start, 96):
-            X, y = get_dataset_sklearn(day=day, farm=0, type_data="train", gap=48, 
-                                       history_size=96, forecast_horizon=96)
-            print("X", X.shape)
-            print("y", y.shape)
+        for quarter in range(start, 96):
+            X, y = get_dataset_sklearn(quarter=quarter, farm=0, type_data="train", gap=48, 
+                                       history_size=96, forecast_horizon=96, size=args.dataset_size)
+            if quarter % 12 == 0:
+                print("X", X.shape)
+                print("y", y.shape)
 
             rfr = model(n_estimators=50, criterion='squared_error', 
                         max_depth=None, min_samples_split=2, 
@@ -55,30 +62,22 @@ if __name__ == '__main__':
                 rfr = rfr.fit(X, y)
 
                 # save
-                with open(f'model/{args.model}/{args.model}_{day}.pkl','wb') as f:
+                with open(f'model/{args.model}/{args.model}_{quarter}.pkl','wb') as f:
                     pickle.dump(rfr, f)
 
             else:
-                with open(f'model/{args.model}/{args.model}_{day}.pkl', 'rb') as f:
+                with open(f'model/{args.model}/{args.model}_{quarter}.pkl', 'rb') as f:
                     rfr = pickle.load(f)
-
-            # y_hat = plot_results(model=rfr, 
-            #                      X=X, y=y, 
-            #                      save_path=f"results/RandomForest/{day}.png", 
-            #                      sklearn=True, 
-            #                      show=False)
-
-        print("rmse:", rmse(y_hat, y))
 
 
     if args.evaluation:
         fh = 96
-        day = 0
+        quarter = 0
 
-        X_train, y_train = get_dataset_sklearn(day=day, farm=0, type_data="train", gap=48, 
-                                   history_size=96, forecast_horizon=96)
-        X_valid, y_valid = get_dataset_sklearn(day=day, farm=0, type_data="valid", gap=48, 
-                                   history_size=96, forecast_horizon=96)
+        X_train, y_train = get_dataset_sklearn(quarter=quarter, farm=0, type_data="train", gap=48, 
+                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
+        X_valid, y_valid = get_dataset_sklearn(quarter=quarter, farm=0, type_data="valid", gap=48, 
+                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
 
         num_samples_train = X_train.shape[0]
         num_samples_valid = X_valid.shape[0]
@@ -90,21 +89,21 @@ if __name__ == '__main__':
         Y_valid_truth = np.empty((num_samples_valid, fh))
 
 
-        for day in range(fh):
-            print("day", day)
-            X_train, y_train = get_dataset_sklearn(day=day, farm=0, type_data="train", gap=48, 
+        for quarter in range(fh):
+            print("quarter", quarter)
+            X_train, y_train = get_dataset_sklearn(quarter=quarter, farm=0, type_data="train", gap=48, 
                                        history_size=96, forecast_horizon=96, size=args.dataset_size)
-            X_valid, y_valid = get_dataset_sklearn(day=day, farm=0, type_data="valid", gap=48, 
+            X_valid, y_valid = get_dataset_sklearn(quarter=quarter, farm=0, type_data="valid", gap=48, 
                                        history_size=96, forecast_horizon=96, size=args.dataset_size)
             
             print("X_train", X_train.shape)
-            rfr = load_sklearn_model(path_to_model=f"model/{args.model}/{args.model}_{day}.pkl")        
+            rfr = load_sklearn_model(path_to_model=f"model/{args.model}/{args.model}_{quarter}.pkl")        
 
-            Y_train[:,day] = rfr.predict(X_train)
-            Y_valid[:,day] = rfr.predict(X_valid)
+            Y_train[:,quarter] = rfr.predict(X_train)
+            Y_valid[:,quarter] = rfr.predict(X_valid)
 
-            Y_train_truth[:,day] = y_train
-            Y_valid_truth[:,day] = y_valid
+            Y_train_truth[:,quarter] = y_train
+            Y_valid_truth[:,quarter] = y_valid
 
 
         y_train = Y_train_truth
