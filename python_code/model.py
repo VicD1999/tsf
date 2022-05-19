@@ -152,6 +152,63 @@ class architecture_history_forecast(nn.Module):
             
         return y_hat
 
+class history_forecast(nn.Module):
+    """
+    input x = (B,L,P)
+    output y = (B,m)
+    """
+    def __init__(self, input_size, hidden_size, output_size, histo_length, gap_length, rnn_cell=nn.GRU):
+        super(history_forecast, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.gap_length = gap_length
+        self.histo_length = histo_length
+
+        self.hidden_size = hidden_size
+
+        self.encoder_histo = rnn_cell(input_size, hidden_size, batch_first=True)
+        
+        self.encoder_gap = rnn_cell(input_size-1, hidden_size, batch_first=True)
+        
+        
+        self.decoder_forecast = rnn_cell(input_size-1, hidden_size*2, batch_first=True)
+        
+        self.decoder = nn.Sequential(nn.Linear(hidden_size*2, hidden_size),
+                                      nn.ReLU(),
+                                      nn.Linear(hidden_size, 1),
+                                      nn.Sigmoid())
+
+        
+
+                  
+    def forward(self, x):
+        
+        y_histo, h_histo = self.encoder_histo(x[:,:self.histo_length,:])
+        gap = x[:,self.histo_length:self.histo_length+self.gap_length,:-1]
+        # print("gap", gap.shape)
+        y_gap, h_gap = self.encoder_gap(gap)
+        
+        # print("h_histo", h_histo.shape)
+        # print("h_gap", h_gap.shape)
+        h = torch.cat([h_histo, h_gap], axis=-1)
+        # print("h", h.shape)
+        
+        y_hat = torch.empty((x.shape[0], self.output_size))
+        # print("y_hat", y_hat.shape)
+
+        for i in range(self.output_size):
+            # print("x[:,self.histo_length+self.gap_length+i,:-1]", x[:,self.histo_length+self.gap_length+i,:-1].shape)
+            z_hat = x[:,self.histo_length+self.gap_length+i-1,:-1].unsqueeze(1)
+            # print("h", h.shape)
+            y, h = self.decoder_forecast(z_hat)
+            y_ = self.decoder(y[:,-1,:])
+            # print("y_", y_.shape)
+            # print("y_hat", y_hat.shape)
+            y_hat[:,i] = self.decoder(y[:,-1,:]).squeeze(1)
+            
+            
+        return y_hat
+
 
 class LSTM(nn.Module):
 
@@ -389,39 +446,60 @@ class nBRCLayer(nn.Module):
 
 class BRC(nn.Module):
 
-    def __init__(self, input_size, hidden_size, seq_length, output_size, neuromodulated=False):
+    def __init__(self, input_size, hidden_size, batch_first=True, neuromodulated=False):
         super(BRC, self).__init__()
         
-        self.batch_first = True
+        self.batch_first = batch_first
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.seq_length = seq_length
-        self.output_size = output_size
         self.neuromodulated = neuromodulated
         
         self.brc = nBRCLayer(input_size=input_size, hidden_size=hidden_size) \
                     if self.neuromodulated else \
                     BRCLayer(input_size=input_size, hidden_size=hidden_size)
-        
-        self.fc = nn.Linear(hidden_size * seq_length, output_size)
-        
+                
         
     def forward(self, x):
-        h0 = torch.zeros(x.shape[0], self.hidden_size)
-        x = x.transpose(0,1)
-
+        if self.batch_first:
+            h0 = torch.zeros(x.shape[0], self.hidden_size)
+            x = x.transpose(0,1)
+        else:
+            h0 = torch.zeros(x.shape[1], self.hidden_size)
+            
         output, hn = self.brc(x, h0)
+        
         # To revert (seq_len, batch_size, num_features) into
         # (batch_size, seq_len, num_features)
-        output = output.transpose(0,1)        
+        if self.batch_first:
+            output = output.transpose(0,1)
 
-        # To go from (N, L, D * H_out) to (N, L * D * H_out) 
-        output = torch.flatten(output, start_dim=1)
-        output = self.fc(output)        
-        
-        return output
+        return output, hn
 
 class nBRC(BRC):
-    def __init__(self, input_size, hidden_size, seq_length, output_size):
-        super().__init__(input_size, hidden_size, seq_length, output_size, neuromodulated=True)
+    def __init__(self, input_size, hidden_size, batch_first=True):
+        super().__init__(input_size, hidden_size, batch_first=batch_first, neuromodulated=True)
+
+class HybridRNN(nn.Module):
+
+    def __init__(self, input_size, hidden_size, batch_first=True, num_layer=1):
+        super(HybridRNN, self).__init__()
+        hidden_size_actual = int(hidden_size / 2)
+
+        self.memory_cell = nBRC(input_size, hidden_size_actual, batch_first=batch_first)
+        self.transient_cell = nn.GRU(input_size, hidden_size_actual, num_layer, batch_first=batch_first)
+
+    def forward(self, x, h0=None):
+
+        if h0 is not None:
+            raise NotImplementedError
+
+        xm, hm = self.memory_cell(x)
+        xt, yt = self.transient_cell(x)
+
+        x = torch.cat((xm, xt), dim=-1)
+        # print("yt", yt.shape)
+        # print("hm", hm.shape)
+        hn = torch.cat((hm, yt.squeeze(0)), dim=-1)
+
+        return x, hn
         

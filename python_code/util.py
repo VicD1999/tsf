@@ -7,6 +7,7 @@ import datetime
 import random
 import pickle
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import glob
 
 import torch
@@ -19,6 +20,117 @@ paths_ores.sort()
 
 paths_mar = ["data/MAR/concat.nc"]
 
+from model import LSTM, GRU, BRC, nBRC, simple_rnn, architecture, architecture_history_forecast, history_forecast, HybridRNN
+from attention import Attention_Net
+from transformer import Transformer, TransformerEncoderDecoder
+
+rnns = {"attn":Attention_Net, "simple_rnn":simple_rnn, 
+        "architecture":architecture, 
+        "architecture_history_forecast":architecture_history_forecast,
+        "history_forecast": history_forecast,
+        "Transformer": Transformer,
+        "TransformerEncoderDecoder":TransformerEncoderDecoder}
+
+cells = {"BRC": BRC,
+         "nBRC": nBRC,
+         "GRU": torch.nn.GRU,
+         "LSTM": torch.nn.LSTM,
+         "HybridRNN": HybridRNN}
+
+def init_model(rnn, input_size, hidden_size, seq_length, output_size, 
+               gap_length, histo_length, nhead, nlayers, device, cell_name):
+    
+    if rnn == architecture:
+        model = rnn(input_size=input_size, hidden_size=hidden_size, 
+                     seq_length=seq_length, output_size=output_size,
+                     gap_length=gap_length)
+    elif rnn == architecture_history_forecast:
+        model = rnn(input_size=input_size, hidden_size=hidden_size, 
+            output_size=output_size, histo_length=histo_length, gap_length=gap)
+    elif rnn == history_forecast:
+        model = rnn(input_size=input_size, hidden_size=hidden_size, 
+            output_size=output_size, histo_length=histo_length, gap_length=gap_length,
+            rnn_cell=cells[cell_name])
+    elif rnn == Transformer:
+        model = rnn(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2, device=device)
+    elif rnn == TransformerEncoderDecoder:
+        model = rnn(d_model=input_size, nlayers=num_layers, d_hid=hidden_size, device=device)
+    else:
+        model = rnn(input_size=input_size, hidden_size=hidden_size, 
+                     seq_length=seq_length, output_size=output_size)
+    return model
+
+def plot_multiple_curve_losses(model_names, save_path=None):
+    """
+    args:
+    -----
+        model_names: list of paths to curve losses csv files containing the 
+                    fields: [epoch, valid_loss, train_loss]
+                    max number of model = 10
+        save_path: string path to save the plot
+                   if None, no saving
+
+    return:
+    -------
+        best: dictonnary with the name of the best model as key and the best epoch as value
+
+    """
+    assert len(model_names) < 10
+
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
+    colors = colors[:len(model_names)]
+
+
+    best = {}
+
+    plt.figure(figsize=(8,5))
+    for color, file in zip(colors, model_names):
+        df = pd.read_csv(file)
+        ep = df[["epoch"]]
+        val = df[["valid_loss"]]
+        best_e = df["epoch"].iloc[df["valid_loss"].argmin()]
+        train =  df[["train_loss"]]
+        model_name = file[8:-4] # remove results/ and .csv
+        best[model_name] = best_e
+        plt.plot(ep, train, color=color, linestyle="solid", label=model_name + " Train Loss")
+        plt.plot(ep, val, color=color, linestyle="dashed", label=model_name + " Validation Loss")
+        
+        # print(df.columns)
+        
+    # plt.ylim((0.02, 0.04))
+    plt.xlabel("Epoch")
+    plt.ylabel("MSE")
+    plt.grid()
+    plt.legend()    
+    if save_path:
+        plt.savefig(save_path, dpi=200)
+
+    return best
+
+def split_name_hidden_size(string):
+    """
+    args:
+    -----
+        string: formated path to csv following "results/*_{hidden_size}.csv" or "*_{hidden_size}"
+    return:
+    -------
+        model_name: str name corresponding to *
+        hidden_size: int corresponding to hiddden_size
+    """
+    if string[:8] == "results/" and string[-4:] == ".csv":
+        string = string[8:-4]
+    ls = string.split('_')
+    hidden_size = int(ls[-1])
+
+    ls = ls[:-1]
+    model_name = ""
+    for i, w in enumerate(ls):
+        if i == len(ls)-1:
+            model_name += w 
+        else:
+            model_name += w + "_"
+            
+    return model_name, hidden_size
 
 def get_wind_time(netCDF_file_path, location):
     """
@@ -613,6 +725,8 @@ def plot_results(model, X, y, save_path=None, sklearn=False, show=False, src_mas
     if show:
         plt.show()
 
+    plt.close()
+
     return y_pred
 
 def pinball_loss(d, f, alpha):
@@ -772,37 +886,40 @@ def small_dataset(new_df, type_data, gap=0, farm=0):
     return X_histo, X_forecast, y
 
 
-def get_dataset_sklearn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big"):
+def get_dataset_sklearn(quarter, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big"):
     """
     args:
-        day: integer between 0 and 95
+        quarter: integer between 0 and 95
 
     returns:
     --------
         X: features matrix with history and forecast variable
-        y: target vector for day day
+        y: target vector for quarter quarter
     """
     histo = np.load(f"data/output15/X{farm}_{size}_{type_data}_histo_{history_size}_gap_{gap}.npy")
     forecast = np.load(f"data/output15/X{farm}_{size}_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
 
     histo = histo.reshape((histo.shape[0], histo.shape[1]*histo.shape[2]))
-    forecast =  forecast[:,:gap+day,:].reshape(forecast.shape[0], (gap+day)*forecast.shape[2])
+    forecast =  forecast[:,:gap+quarter,:].reshape(forecast.shape[0], (gap+quarter)*forecast.shape[2])
 
     X = np.concatenate([histo, forecast], axis=1)
 
     y = np.load(f"data/output15/y{farm}_{size}_{type_data}_{forecast_horizon}_gap_{gap}.npy")
 
-    y = y[:,day]
+    y = y[:,quarter]
 
     return X, y
 
 
-def get_dataset_rnn(day, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big"):
+def get_dataset_rnn(quarter, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big", tensor=False):
+    """
+    
+    """
     histo = np.load(f"data/output15/X{farm}_{size}_{type_data}_histo_{history_size}_gap_{gap}.npy")
     forecast = np.load(f"data/output15/X{farm}_{size}_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
     y = np.load(f"data/output15/y{farm}_{size}_{type_data}_{forecast_horizon}_gap_{gap}.npy")
     
-    forecast = forecast[:,:gap+day,:]
+    forecast = forecast[:,:gap+quarter,:]
     if forecast.shape[2] != histo.shape[2]:
         forecast = np.concatenate([forecast, np.zeros((forecast.shape[0], 
                                                        forecast.shape[1], 1))], 
@@ -811,7 +928,10 @@ def get_dataset_rnn(day, farm=0, type_data="train", gap=0, history_size=96, fore
     # print("forecast", forecast.shape)
     X = np.concatenate([histo, forecast], axis=1)
     
-    return X, y
+    if tensor:
+        return torch.from_numpy(X).float(), torch.from_numpy(y).float()
+    else:
+        return X, y
 
 
 def split_df(df, split=0.9):
@@ -858,5 +978,24 @@ def simple_plot(forecast, truth, periods=24, save=None):
     plt.legend()
     if save:
         plt.savefig(save, dpi=200)
+
+    plt.close()
     # plt.show()
+
+def to_bin(ele, nbins=15):
+    """
+    args:
+    -----
+        ele: float in [0, 1]
+    output:
+    -------
+        return: the corresponding bin by dividing the interval [0, 1]
+                in nbins
+        
+
+    """
+    assert ele >= 0 and ele <= 1.0
+    for i in range(1,nbins+1):
+        if ele < i*(1/nbins):
+            return i
 
