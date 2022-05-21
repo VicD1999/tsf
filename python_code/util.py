@@ -12,6 +12,7 @@ import glob
 
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 
 from sktime.performance_metrics.forecasting import MeanSquaredError
 from pytorch_forecasting.metrics import RMSE, MAE, SMAPE
@@ -21,7 +22,7 @@ paths_ores.sort()
 
 paths_mar = ["data/MAR/concat.nc"]
 
-from model import LSTM, GRU, BRC, nBRC, simple_rnn, architecture, architecture_history_forecast, history_forecast, HybridRNN
+from model import BRC, nBRC, simple_rnn, architecture, architecture_history_forecast, history_forecast, HybridRNN, ahf
 from attention import Attention_Net
 from transformer import Transformer, TransformerEncoderDecoder
 
@@ -30,17 +31,27 @@ rnns = {"attn":Attention_Net, "simple_rnn":simple_rnn,
         "architecture_history_forecast":architecture_history_forecast,
         "history_forecast": history_forecast,
         "Transformer": Transformer,
-        "TransformerEncoderDecoder":TransformerEncoderDecoder}
+        "TransformerEncoderDecoder":TransformerEncoderDecoder,
+        "ahf": ahf}
 
 cells = {"BRC": BRC,
          "nBRC": nBRC,
-         "GRU": torch.nn.GRU,
-         "LSTM": torch.nn.LSTM,
+         "GRU": nn.GRU,
+         "LSTM": nn.LSTM,
          "HybridRNN": HybridRNN}
+
+def MSEsMAPE(y_pred, y):
+    rmse = RMSE(reduction="mean")
+    smape = SMAPE(reduction="mean")
+    return rmse(y_pred, y) + smape(y_pred, y)
+
 
 train_losses = {"MSE":RMSE(reduction="mean"), 
                 "MAE":MAE(reduction="mean"),
-                "SMAPE":SMAPE(reduction="mean")}
+                "SMAPE":SMAPE(reduction="mean"),
+                "MSEsMAPE":MSEsMAPE}
+
+
 
 def predict(model, data_loader, fh, device, transformer_with_decoder):
     """
@@ -147,6 +158,11 @@ def init_model(rnn, input_size, hidden_size, seq_length, output_size,
         device: either cpu or gpu
         cell_name: string ["BRC", "nBRC", "GRU", "LSTM", "HybridRNN"]
     """
+    print("MODEL init INSIDE", rnn, "input_size", input_size, "hidden_size", hidden_size, "seq_length", seq_length, 
+                         "output_size", output_size, "gap_length",gap_length, 
+                         "histo_length", histo_length, "nhead", nhead, 
+                         "nlayers", nlayers, "device", device, 
+                         "cell_name", cell_name)
     assert type(cell_name) == str or cell_name == None
 
     if rnn == architecture:
@@ -155,11 +171,18 @@ def init_model(rnn, input_size, hidden_size, seq_length, output_size,
                      gap_length=gap_length)
     elif rnn == architecture_history_forecast:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
-            output_size=output_size, histo_length=histo_length, gap_length=gap)
-    elif rnn == history_forecast:
+            output_size=output_size, histo_length=histo_length, gap_length=gap_length)
+    elif rnn == ahf:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
-            output_size=output_size, histo_length=histo_length, gap_length=gap_length,
-            rnn_cell=cells[cell_name])
+            output_size=output_size, histo_length=histo_length, gap_length=gap_length)
+    elif rnn == history_forecast:
+        if cell_name == "GRU":
+            model = rnn(input_size=input_size, hidden_size=hidden_size, 
+                output_size=output_size, histo_length=histo_length, gap_length=gap_length)
+        else:
+            model = rnn(input_size=input_size, hidden_size=hidden_size, 
+                output_size=output_size, histo_length=histo_length, gap_length=gap_length,
+                rnn_cell=cells[cell_name])
     elif rnn == Transformer:
         model = rnn(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2, device=device)
     elif rnn == TransformerEncoderDecoder:
@@ -192,7 +215,7 @@ def plot_multiple_curve_losses(model_names, save_path=None):
 
     best = {}
 
-    plt.figure(figsize=(8,5))
+    plt.figure(figsize=(16,10))
     for color, file in zip(colors, model_names):
         df = pd.read_csv(file)
         ep = df[["epoch"]]
@@ -220,7 +243,7 @@ def split_name_hidden_size(string):
     """
     args:
     -----
-        string: formated path to csv following "results/*_{hidden_size}.csv" or "*_{hidden_size}"
+        string: formated path to csv following "results/{model}_{cell}_{loss}_{hidden_size}.csv" or "*_{hidden_size}"
     return:
     -------
         model_name: str name corresponding to *
@@ -230,8 +253,11 @@ def split_name_hidden_size(string):
         string = string[8:-4]
     ls = string.split('_')
     hidden_size = int(ls[-1])
+    loss = ls[-2]
+    cell = ls[-3]
 
-    ls = ls[:-1]
+
+    ls = ls[:-3]
     model_name = ""
     for i, w in enumerate(ls):
         if i == len(ls)-1:
@@ -239,7 +265,7 @@ def split_name_hidden_size(string):
         else:
             model_name += w + "_"
             
-    return model_name, hidden_size
+    return model_name, cell, loss, hidden_size
 
 def get_wind_time(netCDF_file_path, location):
     """
