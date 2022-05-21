@@ -15,6 +15,7 @@ from pytorch_forecasting.metrics import RMSE, MAE, SMAPE
 
 
 if __name__ == '__main__':
+    torch.manual_seed(4)
     rnns = u.rnns
     cells = u.cells
     train_losses = u.train_losses
@@ -22,7 +23,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Dataset args
     parser.add_argument('--forecast_size', help='Size of the forecast window', 
-                        type=int, default=60)
+                        type=int, default=96)
     parser.add_argument('--dataset_size', help='Eval model', 
                         type=str, default="small")
 
@@ -33,7 +34,7 @@ if __name__ == '__main__':
                         type=int, default=0, choices=[0,1,2])
     parser.add_argument('-batch', '--batch_size', help='Batch size', type=int,
                         default=32)
-    parser.add_argument('-lr', '--learning_rate', help='Actor learning rate', 
+    parser.add_argument('-lr', '--learning_rate', help='Learning rate', 
                         type=float, default=1e-4)
     parser.add_argument('--loss', help='Loss to train the model', 
         required=False, default="MSE", type=str, choices=train_losses.keys())    
@@ -45,14 +46,14 @@ if __name__ == '__main__':
                         type=int, default=1)
     parser.add_argument('-t','--training', help='Train the model', 
                         action="store_true")
-    parser.add_argument('--rnn', help='RNN type: LSTM GRU BRC nBRC attn', 
+    parser.add_argument('--rnn', help='Model name', 
                         type=str, choices=rnns.keys())
     parser.add_argument('-c_t','--continue_training',
         help='Continue the training. Requires the path of the model to train', 
         required=False, default=None, type=str)
     parser.add_argument('--cell',
         help='Type of cell in rnn architecture_history_forecast', 
-        required=False, default="", type=str, choices=cells.keys())    
+        required=False, default="GRU", type=str, choices=cells.keys())    
 
     # Model Evaluation args
     parser.add_argument('-e','--evaluation', help='Eval model', 
@@ -117,17 +118,18 @@ if __name__ == '__main__':
     seq_length = X_train.shape[1]
 
     rnn = rnns[args.rnn]
+    print("rnn", rnn)
     transformer_with_decoder = (rnn == rnns["TransformerEncoderDecoder"])
-
     cell_name = None if args.cell == "" else args.cell
     print("cell_name", cell_name)
-
+    
     model = u.init_model(rnn=rnn, input_size=input_size, 
                          hidden_size=hidden_size, seq_length=seq_length, 
                          output_size=output_size, gap_length=gap, 
                          histo_length=history_size, nhead=num_layers, 
                          nlayers=num_layers, device=device, 
                          cell_name=cell_name)
+
 
 
     path_model = args 
@@ -150,7 +152,7 @@ if __name__ == '__main__':
 
         if not args.continue_training:
             with open(path_csv, 'w') as f:
-                f.write('epoch,train_loss,valid_loss,time\n')
+                f.write('epoch,train_loss,std_train_loss,valid_loss,std_valid_loss,time\n')
             restart_epoch = 0
 
         else:
@@ -202,10 +204,9 @@ if __name__ == '__main__':
                 if not os.path.isdir("model/" + model_name):
                     os.mkdir("model/" + model_name)
                 torch.save(model.state_dict(), 
-                           "model/{}/{}_{}_{}.model".format(model_name, 
-                                                            model_name,
-                                                            hidden_size, 
-                                                            e + 1))
+                           "model/{}/{}_{}.model".format(model_name, 
+                                                         model_name,
+                                                         e + 1))
 
             # print("losses_train", losses_train.shape)
             mean_loss = torch.mean(losses_train, dim=0)
@@ -243,8 +244,9 @@ if __name__ == '__main__':
 
             # Write Results
             with open(path_csv, 'a') as f:
-                f.write('{},{},{},{}\n'.format(e + 1, mean_loss, 
-                                               mean_loss_valid, duration))
+                f.write('{},{},{},{},{},{}\n'.format(e + 1, mean_loss, std_loss,
+                                               mean_loss_valid, std_loss_valid, 
+                                               duration))
 
             print("Epoch {} MSE Train Loss: {:.4f} +- {:.4f} MSE Valid Loss: \
                 {:.4f} +- {:.4f} Duration: {:.2f}".format(e + 1, mean_loss, 
@@ -274,9 +276,8 @@ if __name__ == '__main__':
         best_e = df["epoch"].iloc[df["valid_loss"].argmin()]
         
         print("Loading best model:", df[df["epoch"] == best_e])
-        model.load_state_dict(torch.load("model/{}/{}_{}_{}.model".format(model_name, 
+        model.load_state_dict(torch.load("model/{}/{}_{}.model".format(model_name, 
                                                             model_name,
-                                                            hidden_size, 
                                                             best_e), map_location=torch.device("cpu")), strict=False)
         model = model.to(device)
 
@@ -311,4 +312,78 @@ if __name__ == '__main__':
                                 device=device)
 
     
+    if args.comparison:
+
+
+        model_names = ["results/simple_rnn_GRU_MSE_256.csv",
+                        "results/history_forecast_GRU_MSE_256.csv",
+                        "results/architecture_GRU_MSE_256.csv",
+                        # "results/simple_rnn_GRU_MSEsMAPE_256.csv",
+                        # "results/history_forecast_GRU_MSEsMAPE_256.csv",
+                        # "results/architecture_GRU_MSEsMAPE_256.csv",
+                        # "results/architecture_history_forecast_GRU_MSE_256.csv",
+                        "results/history_forecast_BRC_MSE_256.csv",
+                        "results/history_forecast_HybridRNN_MSE_256.csv",
+                        # "results/history_forecast_nBRC_MSE_256.csv",
+                        # "results/ahf_GRU_MSE_256.csv"
+                        ]
+
+
+        # [# 'results/history_forecast_510.csv', 
+                       # 'results/architecture_history_forecast_256.csv',
+                       # 'results/simple_rnn_512.csv',
+                       # 'results/architecture_512.csv',
+                       # 'results/history_forecast_BRC_MAE_256.csv']
+
+
+        best = u.plot_multiple_curve_losses(model_names, 
+            save_path="results/figure/rnn_curve_losses.pdf")
+
+        model_names = list(map(u.split_name_hidden_size, model_names)) 
+
+        print("best", best)
+        print("model_names", model_names)
+
+        # for i in range(len(model_names)):
+        #     model_name, cell_name, _, hidden_size = model_names[0]
+
+
+        #     model = u.init_model(rnns[model_name], input_size, hidden_size, seq_length, output_size=forecast_horizon, 
+        #                         gap_length=gap, histo_length=history_size, nhead=input_size, nlayers=num_layers, device=device, cell_name=cell_name)
+
+
+
+        #     print(model)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
