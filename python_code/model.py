@@ -152,6 +152,67 @@ class architecture_history_forecast(nn.Module):
             
         return y_hat
 
+class ahf(nn.Module):
+    """
+    input x = (B,L,P)
+    output y = (B,m)
+    """
+    def __init__(self, input_size, hidden_size, output_size, histo_length, gap_length):
+        super(ahf, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.gap_length = gap_length
+        self.histo_length = histo_length
+
+        self.hidden_size = hidden_size
+
+        self.encoder_histo = nn.GRU(input_size, hidden_size, num_layers=1, batch_first=True)
+        torch.nn.init.orthogonal_(self.encoder_histo.weight_hh_l0)
+        torch.nn.init.orthogonal_(self.encoder_histo.weight_ih_l0)
+        
+        self.encoder_gap = nn.GRU(input_size-1, hidden_size, num_layers=1, batch_first=True)
+        torch.nn.init.orthogonal_(self.encoder_gap.weight_hh_l0)
+        torch.nn.init.orthogonal_(self.encoder_gap.weight_ih_l0)
+        
+        
+        self.decoder_forecast = nn.GRU(input_size-1, hidden_size*2, num_layers=1, batch_first=True)
+        
+        self.decoder = nn.Sequential(nn.Linear(hidden_size*2, hidden_size),
+                                      nn.ReLU(),
+                                      nn.Linear(hidden_size, 1),
+                                      nn.Sigmoid())
+
+        
+
+                  
+    def forward(self, x):
+        y_histo, h_histo = self.encoder_histo(x[:,:self.histo_length,:])
+        gap = x[:,self.histo_length:self.histo_length+self.gap_length,:-1]
+        # print("gap", gap.shape)
+        y_gap, h_gap = self.encoder_gap(gap)
+        
+        # print("h_histo", h_histo.shape)
+        h = torch.cat([h_histo, h_gap], axis=2)
+        # print("h", h.shape)
+        
+        y_hat = torch.empty((x.shape[0], self.output_size))
+        # print("y_hat", y_hat.shape)
+
+        for i in range(self.output_size):
+            # print("x[:,self.histo_length+self.gap_length+i,:-1]", x[:,self.histo_length+self.gap_length+i,:-1].shape)
+            z_hat = x[:,self.histo_length+self.gap_length+i-1,:-1].unsqueeze(1)
+            # print("h", h.shape)
+            y, h = self.decoder_forecast(z_hat, h)
+            y_ = self.decoder(y[:,-1,:])
+            # print("y_", y_.shape)
+            # print("y_hat", y_hat.shape)
+            y_hat[:,i] = self.decoder(y[:,-1,:]).squeeze(1)
+            
+            
+        return y_hat
+
+    
+
 class history_forecast(nn.Module):
     """
     input x = (B,L,P)
@@ -167,11 +228,20 @@ class history_forecast(nn.Module):
         self.hidden_size = hidden_size
 
         self.encoder_histo = rnn_cell(input_size, hidden_size, batch_first=True)
+        if rnn_cell == nn.GRU:
+            torch.nn.init.orthogonal_(self.encoder_histo.weight_hh_l0)
+            torch.nn.init.orthogonal_(self.encoder_histo.weight_ih_l0)
         
         self.encoder_gap = rnn_cell(input_size-1, hidden_size, batch_first=True)
+        if rnn_cell == nn.GRU:
+            torch.nn.init.orthogonal_(self.encoder_gap.weight_hh_l0)
+            torch.nn.init.orthogonal_(self.encoder_gap.weight_ih_l0)
         
         
         self.decoder_forecast = rnn_cell(input_size-1, hidden_size*2, batch_first=True)
+        if rnn_cell == nn.GRU:
+            torch.nn.init.orthogonal_(self.decoder_forecast.weight_hh_l0)
+            torch.nn.init.orthogonal_(self.decoder_forecast.weight_ih_l0)
         
         self.decoder = nn.Sequential(nn.Linear(hidden_size*2, hidden_size),
                                       nn.ReLU(),
@@ -200,7 +270,7 @@ class history_forecast(nn.Module):
             # print("x[:,self.histo_length+self.gap_length+i,:-1]", x[:,self.histo_length+self.gap_length+i,:-1].shape)
             z_hat = x[:,self.histo_length+self.gap_length+i-1,:-1].unsqueeze(1)
             # print("h", h.shape)
-            y, h = self.decoder_forecast(z_hat)
+            y, h = self.decoder_forecast(z_hat, h)
             y_ = self.decoder(y[:,-1,:])
             # print("y_", y_.shape)
             # print("y_hat", y_hat.shape)
@@ -459,12 +529,12 @@ class BRC(nn.Module):
                     BRCLayer(input_size=input_size, hidden_size=hidden_size)
                 
         
-    def forward(self, x):
+    def forward(self, x, h=None):
         if self.batch_first:
-            h0 = torch.zeros(x.shape[0], self.hidden_size)
+            h0 = torch.zeros(x.shape[0], self.hidden_size) if h is None else h
             x = x.transpose(0,1)
         else:
-            h0 = torch.zeros(x.shape[1], self.hidden_size)
+            h0 = torch.zeros(x.shape[1], self.hidden_size) if h is None else h
             
         output, hn = self.brc(x, h0)
         
@@ -483,18 +553,27 @@ class HybridRNN(nn.Module):
 
     def __init__(self, input_size, hidden_size, batch_first=True, num_layer=1):
         super(HybridRNN, self).__init__()
-        hidden_size_actual = int(hidden_size / 2)
+        self.hidden_size_actual = int(hidden_size / 2)
 
-        self.memory_cell = nBRC(input_size, hidden_size_actual, batch_first=batch_first)
-        self.transient_cell = nn.GRU(input_size, hidden_size_actual, num_layer, batch_first=batch_first)
+        self.memory_cell = nBRC(input_size, self.hidden_size_actual, batch_first=batch_first)
+        self.transient_cell = nn.GRU(input_size, self.hidden_size_actual, num_layer, batch_first=batch_first)
 
     def forward(self, x, h0=None):
+        """
+        
+        h0: Tensor of shape (B, hidden_size)
+        """
 
         if h0 is not None:
-            raise NotImplementedError
+            # print("h0", h0.shape)
+            h0_mem, h0_trans = h0[:,:self.hidden_size_actual], h0[:,self.hidden_size_actual:]
 
-        xm, hm = self.memory_cell(x)
-        xt, yt = self.transient_cell(x)
+            xm, hm = self.memory_cell(x, h0_mem)
+            xt, yt = self.transient_cell(x, h0_trans.unsqueeze(0))
+        else:
+            xm, hm = self.memory_cell(x)
+            xt, yt = self.transient_cell(x)
+
 
         x = torch.cat((xm, xt), dim=-1)
         # print("yt", yt.shape)
