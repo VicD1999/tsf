@@ -172,9 +172,9 @@ class TransformerEncoderDecoder(nn.Module):
         forecast = torch.cat((first_token.unsqueeze(1), forecast), dim=1)
         # print("forecast", forecast.shape)
         encoded_x = self.encode(x)  # (B, Sx, E)
-        print("encoded_x should be (B, Sx, E)", encoded_x.shape)
+        # print("encoded_x should be (B, Sx, E)", encoded_x.shape)
         output = self.decode(forecast, encoded_x)  # (B, Sy+1)
-        print("output", output.shape)
+        # print("output", output.shape)
         return output[:,-self.target_length:] # (B, C, Sy)
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
