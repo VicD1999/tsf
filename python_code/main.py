@@ -4,6 +4,7 @@ import pandas as pd
 import argparse
 import time
 import os
+import subprocess
 
 import util as u
 
@@ -37,7 +38,10 @@ if __name__ == '__main__':
     parser.add_argument('-lr', '--learning_rate', help='Learning rate', 
                         type=float, default=1e-4)
     parser.add_argument('--loss', help='Loss to train the model', 
-        required=False, default="MSE", type=str, choices=train_losses.keys())    
+        required=False, default="MSE", type=str, choices=train_losses.keys()) 
+    parser.add_argument('--device',
+        help='Device to use', 
+        required=False, default=None, type=str)     
 
     # Model args
     parser.add_argument('--hidden_size', help='Size of hidden layers', type=int,
@@ -53,7 +57,7 @@ if __name__ == '__main__':
         required=False, default=None, type=str)
     parser.add_argument('--cell',
         help='Type of cell in rnn architecture_history_forecast', 
-        required=False, default="GRU", type=str, choices=cells.keys())    
+        required=False, default="None", type=str, choices=cells.keys())    
 
     # Model Evaluation args
     parser.add_argument('-e','--evaluation', help='Eval model', 
@@ -64,20 +68,23 @@ if __name__ == '__main__':
                         action="store_true")
 
     args = parser.parse_args()
-
-    
-
     model_training = args.training
 
-    model_name = f"{args.rnn}_{args.cell}_{args.loss}_{args.hidden_size}"
+    if args.rnn == "TransformerEncoderDecoder" or args.rnn == "Transformer":
+        model_name = f"{args.rnn}_{args.num_layers}_{args.loss}_{args.hidden_size}"
+    else:
+        model_name = f"{args.rnn}_{args.cell}_{args.loss}_{args.hidden_size}"
 
     data = None
 
     ######### COMMON PART ##########
 
     # Constant Parameters definition
-    device = torch.device("cuda:0") if torch.cuda.is_available() \
-                                    else torch.device("cpu")
+    if args.device:
+        device = torch.device(args.device)
+    else:
+        device = torch.device("cuda:0") if torch.cuda.is_available() \
+                                        else torch.device("cpu")
     print("device", device)
     batch_size = args.batch_size
     checkpoint = 1
@@ -102,7 +109,6 @@ if __name__ == '__main__':
     print(f"X_train {X_train.shape}, y_train {y_train.shape}")
 
     shuffle = True if args.training else False
-    print("shuffle", shuffle)
     train_loader = DataLoader(TensorDataset(X_train, y_train), 
                               batch_size=batch_size, shuffle=shuffle, 
                               drop_last=False)
@@ -118,11 +124,9 @@ if __name__ == '__main__':
     seq_length = X_train.shape[1]
 
     rnn = rnns[args.rnn]
-    print("rnn", rnn)
     transformer_with_decoder = (rnn == rnns["TransformerEncoderDecoder"])
     cell_name = None if args.cell == "" else args.cell
-    print("cell_name", cell_name)
-    
+
     model = u.init_model(rnn=rnn, input_size=input_size, 
                          hidden_size=hidden_size, seq_length=seq_length, 
                          output_size=output_size, gap_length=gap, 
@@ -276,9 +280,18 @@ if __name__ == '__main__':
         best_e = df["epoch"].iloc[df["valid_loss"].argmin()]
         
         print("Loading best model:", df[df["epoch"] == best_e])
-        model.load_state_dict(torch.load("model/{}/{}_{}.model".format(model_name, 
+        path_to_best_model = "model/{}/{}_{}.model".format(model_name, 
                                                             model_name,
-                                                            best_e), map_location=torch.device("cpu")), strict=False)
+                                                            best_e)
+
+        if not os.path.exists(path_to_best_model):
+            if not os.path.isdir(f"model/{model_name}/"):
+                os.mkdir(f"model/{model_name}/")
+            bashCommand = f"scp -i ~/.ssh/vegamissile victor@vega.mont.priv:/home/victor/tsf/{path_to_best_model} model/{model_name}/"
+            process = subprocess.run(bashCommand.split())
+            print("process", process)
+
+        model.load_state_dict(torch.load(path_to_best_model, map_location=torch.device("cpu")), strict=False)
         model = model.to(device)
 
         rmse = RMSE(reduction="none")
@@ -314,16 +327,20 @@ if __name__ == '__main__':
     
     if args.comparison:
 
+        hidden_size = 1024
+        model_names = [f"results/simple_rnn_GRU_MSE_{hidden_size}.csv",
+                        f"results/history_forecast_GRU_MSE_{hidden_size}.csv",
+                        f"results/architecture_GRU_MSE_{hidden_size}.csv",
 
-        model_names = ["results/simple_rnn_GRU_MSE_256.csv",
-                        "results/history_forecast_GRU_MSE_256.csv",
-                        "results/architecture_GRU_MSE_256.csv",
+                        # "results/simple_rnn_None_MSE_512.csv",
+                        # "results/history_forecast_GRU_MSE_512.csv",
+                        # "results/architecture_None_MSE_512.csv",
                         # "results/simple_rnn_GRU_MSEsMAPE_256.csv",
                         # "results/history_forecast_GRU_MSEsMAPE_256.csv",
                         # "results/architecture_GRU_MSEsMAPE_256.csv",
                         # "results/architecture_history_forecast_GRU_MSE_256.csv",
-                        "results/history_forecast_BRC_MSE_256.csv",
-                        "results/history_forecast_HybridRNN_MSE_256.csv",
+                        # "results/history_forecast_BRC_MSE_256.csv",
+                        # "results/history_forecast_HybridRNN_MSE_256.csv",
                         # "results/history_forecast_nBRC_MSE_256.csv",
                         # "results/ahf_GRU_MSE_256.csv"
                         ]
@@ -337,7 +354,7 @@ if __name__ == '__main__':
 
 
         best = u.plot_multiple_curve_losses(model_names, 
-            save_path="results/figure/rnn_curve_losses.pdf")
+            save_path=f"results/figure/rnn_curve_losses_{hidden_size}.pdf")
 
         model_names = list(map(u.split_name_hidden_size, model_names)) 
 
