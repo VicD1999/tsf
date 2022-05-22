@@ -158,7 +158,7 @@ def init_model(rnn, input_size, hidden_size, seq_length, output_size,
         device: either cpu or gpu
         cell_name: string ["BRC", "nBRC", "GRU", "LSTM", "HybridRNN"]
     """
-    print("MODEL init INSIDE", rnn, "input_size", input_size, "hidden_size", hidden_size, "seq_length", seq_length, 
+    print("MODEL init", rnn, "input_size", input_size, "hidden_size", hidden_size, "seq_length", seq_length, 
                          "output_size", output_size, "gap_length",gap_length, 
                          "histo_length", histo_length, "nhead", nhead, 
                          "nlayers", nlayers, "device", device, 
@@ -184,9 +184,9 @@ def init_model(rnn, input_size, hidden_size, seq_length, output_size,
                 output_size=output_size, histo_length=histo_length, gap_length=gap_length,
                 rnn_cell=cells[cell_name])
     elif rnn == Transformer:
-        model = rnn(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=num_layers, dropout=0.2, device=device)
+        model = rnn(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=nlayers, dropout=0.2, device=device)
     elif rnn == TransformerEncoderDecoder:
-        model = rnn(d_model=input_size, nlayers=num_layers, d_hid=hidden_size, device=device)
+        model = rnn(d_model=input_size, nlayers=nlayers, d_hid=hidden_size, device=device)
     else:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
                      seq_length=seq_length, output_size=output_size)
@@ -215,7 +215,12 @@ def plot_multiple_curve_losses(model_names, save_path=None):
 
     best = {}
 
+    linewidth = 2.5
+    labelsize = 20
+
     plt.figure(figsize=(16,10))
+    plt.rc('xtick', labelsize=labelsize) 
+    plt.rc('ytick', labelsize=labelsize) 
     for color, file in zip(colors, model_names):
         df = pd.read_csv(file)
         ep = df[["epoch"]]
@@ -224,16 +229,16 @@ def plot_multiple_curve_losses(model_names, save_path=None):
         train =  df[["train_loss"]]
         model_name = file[8:-4] # remove results/ and .csv
         best[model_name] = best_e
-        plt.plot(ep, train, color=color, linestyle="solid", label=model_name + " Train Loss")
-        plt.plot(ep, val, color=color, linestyle="dashed", label=model_name + " Validation Loss")
+        plt.plot(ep, train, color=color, linestyle="solid", linewidth=linewidth, label=model_name + " Train Loss")
+        plt.plot(ep, val, color=color, linestyle="dashed", linewidth=linewidth, label=model_name + " Validation Loss")
         
         # print(df.columns)
         
     # plt.ylim((0.02, 0.04))
-    plt.xlabel("Epoch")
-    plt.ylabel("MSE")
+    plt.xlabel("Epoch", fontsize="xx-large")
+    plt.ylabel("MSE", fontsize="xx-large")
     plt.grid()
-    plt.legend()    
+    plt.legend(prop={'size': 20})    
     if save_path:
         plt.savefig(save_path, dpi=200)
 
