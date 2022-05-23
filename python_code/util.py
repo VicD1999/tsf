@@ -85,19 +85,24 @@ def predict(model, data_loader, fh, device, transformer_with_decoder):
         y_hat: Tensor of shape (len(data_loader, fh))
     """
     y_hat = None
-    for x_batch, y_batch in data_loader:
-        x_batch, y_batch = x_batch.to(device), y_batch.to(device)
-        if transformer_with_decoder:
-            output = model.predict(x_batch)
-        else:
-            output = model(x_batch)
+    # print("Memory", torch.cuda.memory_summary(device=device, abbreviated=False))
+    with torch.no_grad():
+        for x_batch, _ in data_loader:
+            # print("x_batch", x_batch.shape)
+            x_batch = x_batch.to(device)
+            # print("x_batch", x_batch.device)
+            if transformer_with_decoder:
+                output = model.predict(x_batch)
+            else:
+                output = model(x_batch)
 
-        y_hat = output if y_hat is None else torch.cat((y_hat, output), dim=0)
-        
+            y_hat = output.to("cpu") if y_hat is None else torch.cat((y_hat, output.to("cpu")), dim=0)
+            # print("y_hat", y_hat.device)
+            # print("Memory", torch.cuda.memory_summary(device=device, abbreviated=False))
     return y_hat
 
 
-def apply_metric(metrics, y_hat, y_truth, set_type, plot_bias=False):
+def apply_metric(metrics, y_hat, y_truth, set_type, plot_bias=False, verbose=True):
     """
     args:
         metrics: list of metrics to apply
@@ -106,6 +111,10 @@ def apply_metric(metrics, y_hat, y_truth, set_type, plot_bias=False):
         y_truth: Tensor of shape (n_samples, fh) containing the ground 
                  truth
         set_type: string either train, valid or test
+        verbose: boolean to print or not the values of losses
+    return:
+        losses: a dictionary with as key "metric_name" and value the value of 
+                the metric
     """
     assert len(y_hat.shape) ==  len(y_truth.shape)
     assert y_hat.shape[0] == y_truth.shape[0]
@@ -121,7 +130,8 @@ def apply_metric(metrics, y_hat, y_truth, set_type, plot_bias=False):
         else:
             reduced = torch.mean(non_reduced, axis=1)
         
-        print(f"{metric_name} {set_type}: {torch.mean(reduced):.4f} \pm {torch.std(reduced):.4f}")
+        if verbose:
+            print(f"{metric_name} {set_type}: {torch.mean(reduced):.4f} \pm {torch.std(reduced):.4f}")
 
         losses[metric_name] = reduced
 
