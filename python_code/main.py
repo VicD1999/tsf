@@ -63,7 +63,7 @@ if __name__ == '__main__':
     # Dataset args
     parser.add_argument('--forecast_size', help='Size of the forecast window', 
                         type=int, default=96)
-    parser.add_argument('--dataset_size', help='Eval model', 
+    parser.add_argument('--dataset_size', help='Size of the dataset either small or big', 
                         type=str, default="small")
 
     # Training args
@@ -391,6 +391,9 @@ if __name__ == '__main__':
         assess = {}
         for i, (key, value) in enumerate(best.items()):
             model_name, cell, loss, hidden_size = u.split_name_hidden_size(model_names[i])
+            if model_name.startswith("Transformer"):
+                num_layers = int(cell)
+
 
             model = u.init_model(rnn=rnns[model_name], input_size=input_size, 
                          hidden_size=hidden_size, seq_length=seq_length, 
@@ -401,12 +404,14 @@ if __name__ == '__main__':
             model = model.to(device)
             ep = str(int(value))
             path_to_model = f"model/{key}/{key}_{ep}.model"
+            print("path to best model", path_to_model)
 
             u.exist_or_download(path_to_model, model_name=key)
             model.load_state_dict(torch.load(path_to_model, map_location=torch.device(device)), strict=False)
 
             transformer_with_decoder = ("TransformerEncoderDecoder" == key[:len("TransformerEncoderDecoder")])
-            print("Assessment with decoder")
+            if transformer_with_decoder:
+                print("Assessment with decoder")
             assess[key] = assess_model(model, plot=False, verbose=False)
 
 
