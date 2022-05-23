@@ -4,7 +4,6 @@ import pandas as pd
 import argparse
 import time
 import os
-import subprocess
 
 import util as u
 
@@ -13,6 +12,41 @@ import torch.nn.functional as F
 import torch
 
 from pytorch_forecasting.metrics import RMSE, MAE, SMAPE
+
+def assess_model(model, plot=False):
+
+    rmse = RMSE(reduction="none")
+    mae = MAE(reduction="none")
+    smape = SMAPE(reduction="none")
+
+    metrics = [rmse, mae, smape]
+
+    Xs = [X_train, X_valid, X_test]
+    ys = [y_train, y_valid, y_test]
+    loaders = [train_loader, val_loader, test_loader]
+    set_types = ["train", "valid", "test"]
+
+    for X, y, loader, set_type in zip(Xs, ys, loaders, set_types):
+        plot_bias = (set_type == "valid")
+
+        y_hat = u.predict(model, data_loader=loader, fh=forecast_horizon, 
+                          device=device, 
+                          transformer_with_decoder=transformer_with_decoder)
+        losses = u.apply_metric(metrics, y_hat=y_hat, y_truth=y, set_type=set_type, plot_bias=plot_bias)
+
+
+        if plot:
+            for metric in metrics:
+                metric_name = metric.__repr__()[:-2]
+                u.plot_best_worst_histo(model, X=X, y=y, 
+                                losses=losses[metric_name], 
+                                loss_name=metric_name, 
+                                set_type=set_type, 
+                                model_name=model_name, 
+                                transformer_with_decoder=transformer_with_decoder,
+                                device=device)
+
+
 
 
 if __name__ == '__main__':
@@ -256,8 +290,8 @@ if __name__ == '__main__':
                 {:.4f} +- {:.4f} Duration: {:.2f}".format(e + 1, mean_loss, 
                         std_loss, mean_loss_valid, std_loss_valid, duration))
 
-    ### MODEL EVALUATION ###
-    if args.evaluation:
+
+    if args.evaluation or args.comparison:
         X_test, y_test = u.get_dataset_rnn(quarter=quarter, farm=farm, 
                                          type_data="test", gap=gap, 
                                          history_size=history_size, 
@@ -266,6 +300,10 @@ if __name__ == '__main__':
         test_loader = DataLoader(TensorDataset(X_test, y_test), 
                                  batch_size=batch_size, shuffle=shuffle, 
                                  drop_last=False)
+
+    ### MODEL EVALUATION ###
+    if args.evaluation:
+        
         # Create tree structure
         if not os.path.isdir("results/figure/"):
             os.mkdir("results/figure/")
@@ -280,57 +318,32 @@ if __name__ == '__main__':
         best_e = df["epoch"].iloc[df["valid_loss"].argmin()]
         
         print("Loading best model:", df[df["epoch"] == best_e])
-        path_to_best_model = "model/{}/{}_{}.model".format(model_name, 
+        path_to_model = "model/{}/{}_{}.model".format(model_name, 
                                                             model_name,
                                                             best_e)
 
-        if not os.path.exists(path_to_best_model):
-            if not os.path.isdir(f"model/{model_name}/"):
-                os.mkdir(f"model/{model_name}/")
-            bashCommand = f"scp -i ~/.ssh/vegamissile victor@vega.mont.priv:/home/victor/tsf/{path_to_best_model} model/{model_name}/"
-            process = subprocess.run(bashCommand.split())
-            print("process", process)
+        
 
-        model.load_state_dict(torch.load(path_to_best_model, map_location=torch.device("cpu")), strict=False)
+        u.exist_or_download(path_to_model, model_name=model_name)
+
+        model.load_state_dict(torch.load(path_to_model, map_location=torch.device("cpu")), strict=False)
         model = model.to(device)
 
-        rmse = RMSE(reduction="none")
-        mae = MAE(reduction="none")
-        smape = SMAPE(reduction="none")
+        
+        assess_model(model, plot=True)
 
-        metrics = [rmse, mae, smape]
-
-        Xs = [X_train, X_valid, X_test]
-        ys = [y_train, y_valid, y_test]
-        loaders = [train_loader, val_loader, test_loader]
-        set_types = ["train", "valid", "test"]
-
-        for X, y, loader, set_type in zip(Xs, ys, loaders, set_types):
-            plot_bias = (set_type == "valid")
-
-            y_hat = u.predict(model, data_loader=loader, fh=forecast_horizon, 
-                              device=device, 
-                              transformer_with_decoder=transformer_with_decoder)
-            losses = u.apply_metric(metrics, y_hat=y_hat, y_truth=y, set_type=set_type, plot_bias=plot_bias)
-
-
-            for metric in metrics:
-                metric_name = metric.__repr__()[:-2]
-                u.plot_best_worst_histo(model, X=X, y=y, 
-                                losses=losses[metric_name], 
-                                loss_name=metric_name, 
-                                set_type=set_type, 
-                                model_name=model_name, 
-                                transformer_with_decoder=transformer_with_decoder,
-                                device=device)
+        
 
     
     if args.comparison:
 
-        hidden_size = 1024
+        hidden_size = 256
         model_names = [f"results/simple_rnn_GRU_MSE_{hidden_size}.csv",
                         f"results/history_forecast_GRU_MSE_{hidden_size}.csv",
                         f"results/architecture_GRU_MSE_{hidden_size}.csv",
+                        f"results/simple_rnn_GRU_MSE_512.csv",
+                        f"results/history_forecast_GRU_MSE_512.csv",
+                        f"results/architecture_GRU_MSE_512.csv",
 
                         # "results/simple_rnn_None_MSE_512.csv",
                         # "results/history_forecast_GRU_MSE_512.csv",
@@ -354,12 +367,33 @@ if __name__ == '__main__':
 
 
         best = u.plot_multiple_curve_losses(model_names, 
-            save_path=f"results/figure/rnn_curve_losses_{hidden_size}.pdf")
+            save_path=f"results/figure/rnn_curve_losses_{hidden_size}_512.pdf")
 
-        model_names = list(map(u.split_name_hidden_size, model_names)) 
+        for i, (key, value) in enumerate(best.items()):
+            model_name, cell, loss, hidden_size = u.split_name_hidden_size(model_names[i])
 
-        print("best", best)
-        print("model_names", model_names)
+            model = u.init_model(rnn=rnns[model_name], input_size=input_size, 
+                         hidden_size=hidden_size, seq_length=seq_length, 
+                         output_size=output_size, gap_length=gap, 
+                         histo_length=history_size, nhead=num_layers, 
+                         nlayers=num_layers, device=device, 
+                         cell_name=cell)
+            print("key", key)
+            print("value", value, type(value))
+            print("str", str)
+            ep = str(int(value))
+            path_to_model = f"model/{key}/{key}_{ep}.model"
+
+            u.exist_or_download(path_to_model, model_name=key)
+            model.load_state_dict(torch.load(path_to_model, map_location=torch.device("cpu")), strict=False)
+
+            assess_model(model, plot=False)
+
+
+        # model_names = list(map(u.split_name_hidden_size, model_names)) 
+
+        # print("best", best)
+        # print("model_names", model_names)
 
         # for i in range(len(model_names)):
         #     model_name, cell_name, _, hidden_size = model_names[0]

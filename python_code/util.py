@@ -9,6 +9,8 @@ import pickle
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import glob
+import subprocess
+import os
 
 import torch
 import torch.nn.functional as F
@@ -50,6 +52,19 @@ train_losses = {"MSE":RMSE(reduction="mean"),
                 "MAE":MAE(reduction="mean"),
                 "SMAPE":SMAPE(reduction="mean"),
                 "MSEsMAPE":MSEsMAPE}
+
+def exist_or_download(path_to_model, model_name):
+    """
+    args:
+        path_to_model: string e.g. "/model/architecture_GRU_MSE_512/architecture_GRU_MSE_512_39.model"
+        model_name: string e.g. "architecture_GRU_MSE_512"
+    """
+    if not os.path.exists(path_to_model):
+        if not os.path.isdir(f"model/{model_name}/"):
+            os.mkdir(f"model/{model_name}/")
+        bashCommand = f"scp -i ~/.ssh/vegamissile victor@vega.mont.priv:/home/victor/tsf/{path_to_model} model/{model_name}/"
+        process = subprocess.run(bashCommand.split())
+        # print("process", process)
 
 
 
