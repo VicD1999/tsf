@@ -69,13 +69,13 @@ if __name__ == '__main__':
         farm = 0
         fh = 96
         gap=48
-        day = 95
+        quarter = 95
 
         new_df = pd.read_csv(f"data/output15/dataset{farm}_15.csv")
         df_train, df_valid, df_test = split_df(new_df, split=0.8)
 
         # TRAIN PART
-        X, y = get_dataset_rnn(day=day, farm=farm, type_data="train", gap=gap, history_size=96, forecast_horizon=fh, size="small")
+        X, y = get_dataset_rnn(quarter=quarter, farm=farm, type_data="train", gap=gap, history_size=96, forecast_horizon=fh, size="small")
 
         # Climatology
         climatology_forecaster = NaiveForecaster(strategy="mean")
@@ -85,25 +85,25 @@ if __name__ == '__main__':
         losses = [rmse(y[i,:], y_pred) for i in range(y.shape[0])]
 
         print("Train set climatology:")
-        print(f"rmse: {np.mean(losses):.2f} \pm {np.std(losses):.2f} \nrmse normalized {np.mean(losses):.2f} \pm {np.std(losses):.2f}")
+        print(f"rmse: {np.mean(losses):.4f} \pm {np.std(losses):.4f} \nrmse normalized {np.mean(losses):.4f} \pm {np.std(losses):.4f}")
         
         # Persistance
         y_pred = X[:,95,-1].reshape((-1,1)) * np.ones(shape=(X.shape[0], fh))
         losses_train = np.sqrt(np.mean(np.square(y_pred - y), axis=1))
         print("Train set persistance:")
-        print(f"RMSE {np.mean(losses_train):.2f} \pm {np.std(losses_train):.2f}\n")
+        print(f"RMSE {np.mean(losses_train):.4f} \pm {np.std(losses_train):.4f}\n")
 
 
         # VALID PART
 
-        X, y = get_dataset_rnn(day, farm=0, type_data="valid", gap=48, history_size=96, forecast_horizon=96, size="small")
+        X, y = get_dataset_rnn(quarter, farm=0, type_data="valid", gap=48, history_size=96, forecast_horizon=96, size="small")
 
         # Climatology
         y_pred = climatology_forecaster.predict(fh=[i for i in range(1,fh+1)]).ravel()
 
         losses = [rmse(y[i,:], y_pred) for i in range(y.shape[0])]
         print("Valid set climatology:")
-        print(f"rmse: {np.mean(losses):.2f} \pm {np.std(losses):.2f} \nrmse normalized {np.mean(losses):.2f} \pm {np.std(losses):.2f}")
+        print(f"rmse: {np.mean(losses):.4f} \pm {np.std(losses):.4f} \nrmse normalized {np.mean(losses):.4f} \pm {np.std(losses):.4f}")
 
         # PLOT
 
@@ -122,7 +122,7 @@ if __name__ == '__main__':
         y_pred = X[:,95,-1].reshape((-1,1)) * np.ones(shape=(X.shape[0], fh))
         losses_valid = np.sqrt(np.mean(np.square(y_pred - y), axis=1))
         print("Valid set persistance:")
-        print(f"RMSE {np.mean(losses_valid):.2f} \pm {np.std(losses_valid):.2f}\n")
+        print(f"RMSE {np.mean(losses_valid):.4f} \pm {np.std(losses_valid):.4f}\n")
 
         # PLOT
         best = np.argmin(losses_valid)
@@ -133,5 +133,23 @@ if __name__ == '__main__':
         print(f"Worst rmse: {losses_valid[worst]}")
         simple_plot(truth=y[worst] ,forecast=y_pred[worst], periods=96, save="results/figure/naive/naive_persist_valid_worst.pdf")
 
+        # TEST PART
+        X, y = get_dataset_rnn(quarter=quarter, farm=farm, type_data="test", gap=gap, history_size=96, forecast_horizon=fh, size="small")
+
+        # Climatology
+        climatology_forecaster = NaiveForecaster(strategy="mean")
+        climatology_forecaster.fit(df_train["prod_wf0"].values / power_installed[farm])
+
+        y_pred = climatology_forecaster.predict(fh=[i for i in range(1,fh+1)]).ravel()
+        losses = [rmse(y[i,:], y_pred) for i in range(y.shape[0])]
+
+        print("TEST set climatology:")
+        print(f"rmse: {np.mean(losses):.4f} \pm {np.std(losses):.4f} \nrmse normalized {np.mean(losses):.4f} \pm {np.std(losses):.4f}")
+        
+        # Persistance
+        y_pred = X[:,95,-1].reshape((-1,1)) * np.ones(shape=(X.shape[0], fh))
+        losses_test = np.sqrt(np.mean(np.square(y_pred - y), axis=1))
+        print("Test set persistance:")
+        print(f"RMSE {np.mean(losses_test):.4f} \pm {np.std(losses_test):.4f}\n")
 
 
