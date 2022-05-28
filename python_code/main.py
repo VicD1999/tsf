@@ -24,7 +24,7 @@ def assess_model(model, plot=False, verbose=True):
     Xs = [X_train, X_valid, X_test]
     ys = [y_train, y_valid, y_test]
     loaders = [train_loader, val_loader, test_loader]
-    set_types = ["train", "valid", "test"]
+    set_types = ["train"] #, "valid", "test"]
 
     assess = {}
 
@@ -36,6 +36,7 @@ def assess_model(model, plot=False, verbose=True):
                           transformer_with_decoder=transformer_with_decoder)
         print("y_hat PRED", y_hat.device)
         losses = u.apply_metric(metrics, y_hat=y_hat, y_truth=y, set_type=set_type, plot_bias=plot_bias, verbose=verbose)
+
         assess[set_type] = losses
         if plot:
             for metric in metrics:
@@ -47,6 +48,34 @@ def assess_model(model, plot=False, verbose=True):
                                 model_name=model_name, 
                                 transformer_with_decoder=transformer_with_decoder,
                                 device=device)
+
+
+            print("MAE non redduced", losses["MAE_non_reduced"].shape)
+            non_reduced_mae = losses["MAE_non_reduced"]
+            reduced_mae = torch.mean(non_reduced_mae, dim=0)
+            non_reduced_mse = losses["RMSE_non_reduced"]
+            reduced_mse = torch.sqrt(torch.mean(non_reduced_mse, dim=0))
+            non_reduced = y - y_hat 
+            reduced = torch.mean(non_reduced, dim=0)
+            mean = torch.mean(reduced)
+            print("MAE reduced per batch", reduced.shape, "mean", torch.mean(reduced_mae))
+            print("SE reduced per batch", reduced.shape, "mean", torch.mean(reduced_mse))
+            import matplotlib.pyplot as plt
+            plt.figure(figsize=(12,6))
+            linewidths = 0.8
+            plt.bar(range(reduced.shape[0]), reduced,  label="bias") # 'bo-',
+            plt.plot(range(reduced_mae.shape[0]),  reduced_mae, 'ro-', label="MAE")
+            plt.plot(range(reduced_mse.shape[0]),  reduced_mse, 'go-', label="RSE")
+            # plt.hlines(mean, xmin=0, xmax=100, colors='red', label="Mean")
+            plt.xlabel("Timestamps")
+            plt.ylabel("% of power production")
+            plt.xlim((-1, 97))
+            # plt.ylim((-0.2,0.2))
+            plt.grid()
+            plt.legend()
+            plt.savefig(f"results/figure/{model_name}/{model_name}.pdf", dpi=150)
+            plt.show()
+        print()
 
     return assess
 
@@ -341,16 +370,20 @@ if __name__ == '__main__':
     
     if args.comparison:
 
-        hidden_size = 256
-        model_names = [# f"results/simple_rnn_GRU_MSE_{hidden_size}.csv",
-                        # f"results/history_forecast_GRU_MSE_{hidden_size}.csv",
-                        # f"results/architecture_GRU_MSE_{hidden_size}.csv",
-                        # f"results/simple_rnn_GRU_MSE_512.csv",
+        hidden_size = 512
+        hidden_size1 = 1024
+
+        model_names = [ f"results/simple_rnn_GRU_MSE_{hidden_size1}.csv",
+                        f"results/history_forecast_GRU_MSE_{hidden_size1}.csv",
+                        f"results/architecture_GRU_MSE_{hidden_size1}.csv",
+                        f"results/simple_rnn_GRU_MSE_{hidden_size}.csv",
+                        f"results/history_forecast_GRU_MSE_{hidden_size}.csv",
+                        f"results/architecture_GRU_MSE_{hidden_size}.csv",
+                        f"results/simple_rnn_GRU_MSE_512.csv",
                         f"results/history_forecast_GRU_MSE_512.csv",
-                        f"results/history_forecast_GRU_MAE_512.csv",
+                        # f"results/history_forecast_GRU_MAE_512.csv",
                         # f"results/history_forecast_GRU_SMAPE_512.csv",
-                        f"results/history_forecast_GRU_MSEsMAPE_512.csv",
-                        # f"results/history_forecast_GRU_MSE_1024.csv",
+                        # f"results/history_forecast_GRU_MSEsMAPE_512.csv",
                         # f"results/architecture_GRU_MSE_512.csv",
 
                         # "results/simple_rnn_None_MSE_512.csv",
@@ -367,107 +400,109 @@ if __name__ == '__main__':
                         ]
 
 
-        model_names = [# 'results/TransformerEncoderDecoder_4_MSE_256.csv', 
-                       # 'results/TransformerEncoderDecoder_6_MSE_256.csv',
-                       'results/TransformerEncoderDecoder_8_MSE_256.csv',
-                       'results/Transformer_4_MSE_256.csv', 
-                       'results/Transformer_6_MSE_256.csv',
+        model_names = [
+                       
+                       # 'results/Transformer_4_MSE_256.csv', 
+                       # 'results/Transformer_6_MSE_256.csv',
                        # 'results/Transformer_8_MSE_256.csv',
-                       # 'results/TransformerEncoderDecoder_4_MSE_512.csv', 
-                       # 'results/TransformerEncoderDecoder_6_MSE_512.csv',
-                       'results/TransformerEncoderDecoder_8_MSE_512.csv',
-                       'results/Transformer_4_MSE_512.csv', 
-                       'results/Transformer_6_MSE_512.csv',
+                       # 'results/Transformer_4_MSE_512.csv', 
+                       # 'results/Transformer_6_MSE_512.csv',
                        # 'results/Transformer_8_MSE_512.csv',
-                       # 'results/simple_rnn_512.csv',
-                       # 'results/architecture_512.csv',
-                       # 'results/history_forecast_BRC_MAE_256.csv'
+                       
+                       
+                       # 'results/TransformerEncoderDecoder_4_MSE_256.csv', 
+                       'results/TransformerEncoderDecoder_6_MSE_256.csv',
+                       'results/TransformerEncoderDecoder_8_MSE_256.csv',
+                       # 'results/TransformerEncoderDecoder_4_MSE_512.csv', 
+                       'results/TransformerEncoderDecoder_6_MSE_512.csv',
+                       'results/TransformerEncoderDecoder_8_MSE_512.csv',
+                       
                        ]
 
 
         best = u.plot_multiple_curve_losses(model_names, 
-            save_path=f"results/figure/trasnformer_curve_losses.pdf")
+            save_path=f"results/figure/transformer_encdec_curve_losses.pdf")
 
-        assess = {}
-        for i, (key, value) in enumerate(best.items()):
-            model_name, cell, loss, hidden_size = u.split_name_hidden_size(model_names[i])
-            if model_name.startswith("Transformer"):
-                num_layers = int(cell)
-
-
-            model = u.init_model(rnn=rnns[model_name], input_size=input_size, 
-                         hidden_size=hidden_size, seq_length=seq_length, 
-                         output_size=output_size, gap_length=gap, 
-                         histo_length=history_size, nhead=num_layers, 
-                         nlayers=num_layers, device=device, 
-                         cell_name=cell)
-            model = model.to(device)
-            ep = str(int(value))
-            path_to_model = f"model/{key}/{key}_{ep}.model"
-            print("path to best model", path_to_model)
-
-            u.exist_or_download(path_to_model, model_name=key)
-            model.load_state_dict(torch.load(path_to_model, map_location=torch.device(device)), strict=False)
-
-            transformer_with_decoder = ("TransformerEncoderDecoder" == key[:len("TransformerEncoderDecoder")])
-            if transformer_with_decoder:
-                print("Assessment with decoder")
-            assess[key] = assess_model(model, plot=False, verbose=False)
+        # assess = {}
+        # for i, (key, value) in enumerate(best.items()):
+        #     model_name, cell, loss, hidden_size = u.split_name_hidden_size(model_names[i])
+        #     if model_name.startswith("Transformer"):
+        #         num_layers = int(cell)
 
 
-        def name(key):
-            name = "" 
-            for w in key.split("_"):
-                name += w + " "
+        #     model = u.init_model(rnn=rnns[model_name], input_size=input_size, 
+        #                  hidden_size=hidden_size, seq_length=seq_length, 
+        #                  output_size=output_size, gap_length=gap, 
+        #                  histo_length=history_size, nhead=num_layers, 
+        #                  nlayers=num_layers, device=device, 
+        #                  cell_name=cell)
+        #     model = model.to(device)
+        #     ep = str(int(value))
+        #     path_to_model = f"model/{key}/{key}_{ep}.model"
+        #     print("path to best model", path_to_model)
 
-            return name
+        #     u.exist_or_download(path_to_model, model_name=key)
+        #     model.load_state_dict(torch.load(path_to_model, map_location=torch.device(device)), strict=False)
 
-
-        print()
-        print("LATEX PRINT")
-        print(f"Model & train & valid & test \\\\")
-        for key in best.keys():
-            # print("key", key)
-            # print("assess[key]", assess[key])
-            # print("assess[key] valid", assess[key]["valid"])
-            loss_train = assess[key]["train"]["RMSE"]
-            loss_val = assess[key]["valid"]["RMSE"]
-            loss_test = assess[key]["test"]["RMSE"]
-
-            print(f"{name(key)} & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ & ${torch.mean(loss_val):.4f} \pm {torch.std(loss_val):.4f}$ & ${torch.mean(loss_test):.4f} \pm {torch.std(loss_test):.4f}$ \\\\")
+        #     transformer_with_decoder = ("TransformerEncoderDecoder" == key[:len("TransformerEncoderDecoder")])
+        #     if transformer_with_decoder:
+        #         print("Assessment with decoder")
+        #     assess[key] = assess_model(model, plot=False, verbose=False)
 
 
-        print()
-        print("LATEX PRINT ALL METRICS")
-        print("METRICS: ", assess[key]["train"].keys())
-        print(f"Model & train & valid & test \\\\")
-        for key in best.keys():
-            # print("key", key)
-            # print("assess[key]", assess[key])
-            # print("assess[key] valid", assess[key]["valid"])
-            print(f"{name(key)}")
-            for set_type in ["train", "valid", "test"]:
-                for metric in assess[key][set_type].keys():
-                    loss_train = assess[key][set_type][metric]
-                    print(f" & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ ")
-            print(f"\\\\")
+        # def name(key):
+        #     name = "" 
+        #     for w in key.split("_"):
+        #         name += w + " "
 
-        print()
-        print("LATEX PRINT ALL METRICS TRASNPOSED")
-        print("METRICS: ", assess[key]["train"].keys())
-        print(f"Model & Loss &")
-        for key in best.keys():
-            print(f"{name(key)}")
-        print("\\\\")
+        #     return name
+
+
+        # print()
+        # print("LATEX PRINT")
+        # print(f"Model & train & valid & test \\\\")
+        # for key in best.keys():
+        #     # print("key", key)
+        #     # print("assess[key]", assess[key])
+        #     # print("assess[key] valid", assess[key]["valid"])
+        #     loss_train = assess[key]["train"]["RMSE"]
+        #     loss_val = assess[key]["valid"]["RMSE"]
+        #     loss_test = assess[key]["test"]["RMSE"]
+
+        #     print(f"{name(key)} & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ & ${torch.mean(loss_val):.4f} \pm {torch.std(loss_val):.4f}$ & ${torch.mean(loss_test):.4f} \pm {torch.std(loss_test):.4f}$ \\\\")
+
+
+        # print()
+        # print("LATEX PRINT ALL METRICS")
+        # print("METRICS: ", assess[key]["train"].keys())
+        # print(f"Model & train & valid & test \\\\")
+        # for key in best.keys():
+        #     # print("key", key)
+        #     # print("assess[key]", assess[key])
+        #     # print("assess[key] valid", assess[key]["valid"])
+        #     print(f"{name(key)}")
+        #     for set_type in ["train", "valid", "test"]:
+        #         for metric in assess[key][set_type].keys():
+        #             loss_train = assess[key][set_type][metric]
+        #             print(f" & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ ")
+        #     print(f"\\\\")
+
+        # print()
+        # print("LATEX PRINT ALL METRICS TRASNPOSED")
+        # print("METRICS: ", assess[key]["train"].keys())
+        # print(f"Model & Loss &")
+        # for key in best.keys():
+        #     print(f"{name(key)}")
+        # print("\\\\")
         
-        for set_type in ["train", "valid", "test"]:
-            print(f"{set_type}")
-            for metric in assess[key][set_type].keys():
-                print(f" & {metric}")
-                for key in best.keys():
-                    loss_train = assess[key][set_type][metric]
-                    print(f" & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ ")
-            print(f"\\\\")
+        # for set_type in ["train", "valid", "test"]:
+        #     print(f"{set_type}")
+        #     for metric in assess[key][set_type].keys():
+        #         print(f" & {metric}")
+        #         for key in best.keys():
+        #             loss_train = assess[key][set_type][metric]
+        #             print(f" & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ ")
+        #     print(f"\\\\")
 
 
 

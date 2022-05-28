@@ -122,7 +122,7 @@ def apply_metric(metrics, y_hat, y_truth, set_type, plot_bias=False, verbose=Tru
 
     losses = {}
     for metric in metrics:
-        metric_name = metric.__repr__()[:-2]
+        metric_name = metric.__repr__()[:-2] # Remove the () at the end of the method
         non_reduced = metric(y_hat, y_truth)
 
         if metric_name == "RMSE":
@@ -133,6 +133,7 @@ def apply_metric(metrics, y_hat, y_truth, set_type, plot_bias=False, verbose=Tru
         if verbose:
             print(f"{metric_name} {set_type}: {torch.mean(reduced):.4f} \pm {torch.std(reduced):.4f}")
 
+        losses[metric_name + "_non_reduced"] = non_reduced
         losses[metric_name] = reduced
 
     return losses
@@ -153,17 +154,17 @@ def plot_best_worst_histo(model, X, y, losses, loss_name, set_type, model_name, 
     """
     prefix_path=f"results/figure/{model_name}/{model_name}"
     sufix_path=f"{loss_name}_{set_type}.pdf"
-    best = torch.argmin(losses)
-    plot_results(model, X[best,:,:].to(device), 
-                   y[best,:].to(device), 
-                   save_path=prefix_path+ f"_best_" + sufix_path, 
-                   transformer_with_decoder=transformer_with_decoder)
-    worst = torch.argmax(losses)
-    plot_results(model, X[worst,:,:].to(device), 
-                   y[worst,:].to(device), 
-                   save_path=prefix_path + f"_worst_" + sufix_path, 
-                   transformer_with_decoder=transformer_with_decoder)
 
+    best = torch.argmin(losses)
+    worst = torch.argmax(losses)
+    indices = [("_best_", best), ("_worst_", worst), ("_18_", 18)]
+
+    for name, idx in indices:
+        plot_results(model, X[idx,:,:].to(device), 
+                       y[idx,:].to(device), 
+                       save_path=prefix_path + name + sufix_path, 
+                       transformer_with_decoder=transformer_with_decoder)
+    
     plt.figure()
     plt.hist(losses.unsqueeze(0).detach(), bins=30)
     plt.xlabel(loss_name)
@@ -243,7 +244,7 @@ def plot_multiple_curve_losses(model_names, save_path=None):
     linewidth = 2.5
     labelsize = 20
 
-    plt.figure(figsize=(16,10))
+    plt.figure(figsize=(16,12))
     plt.rc('xtick', labelsize=labelsize) 
     plt.rc('ytick', labelsize=labelsize) 
     for color, file in zip(colors, model_names):
@@ -262,6 +263,7 @@ def plot_multiple_curve_losses(model_names, save_path=None):
     # plt.ylim((0.02, 0.04))
     plt.xlabel("Epoch", fontsize="xx-large")
     plt.ylabel("MSE", fontsize="xx-large")
+    plt.ylim((0.0, 0.09))
     plt.grid()
     plt.legend(prop={'size': 20})    
     if save_path:
