@@ -24,7 +24,7 @@ def assess_model(model, plot=False, verbose=True):
     Xs = [X_train, X_valid, X_test]
     ys = [y_train, y_valid, y_test]
     loaders = [train_loader, val_loader, test_loader]
-    set_types = ["train"] #, "valid", "test"]
+    set_types = ["train", "valid", "test"]
 
     assess = {}
 
@@ -67,14 +67,18 @@ def assess_model(model, plot=False, verbose=True):
             plt.plot(range(reduced_mae.shape[0]),  reduced_mae, 'ro-', label="MAE")
             plt.plot(range(reduced_mse.shape[0]),  reduced_mse, 'go-', label="RSE")
             # plt.hlines(mean, xmin=0, xmax=100, colors='red', label="Mean")
-            plt.xlabel("Timestamps")
-            plt.ylabel("% of power production")
+            fontsize = "xx-large"
+            plt.xlabel("Timestamps", fontsize=fontsize)
+            plt.ylabel("% of power production", fontsize=fontsize)
+            fontsize = "x-large"
+            plt.xticks(fontsize=fontsize)
+            plt.yticks(fontsize=fontsize)
             plt.xlim((-1, 97))
-            # plt.ylim((-0.2,0.2))
+            plt.ylim((-0.07,0.21))
             plt.grid()
             plt.legend()
-            plt.savefig(f"results/figure/{model_name}/{model_name}.pdf", dpi=150)
-            plt.show()
+            plt.savefig(f"results/figure/{model_name}/{model_name}_{set_type}_timestamp.pdf", dpi=150)
+            # plt.show()
         print()
 
     return assess

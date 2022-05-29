@@ -157,18 +157,34 @@ def plot_best_worst_histo(model, X, y, losses, loss_name, set_type, model_name, 
 
     best = torch.argmin(losses)
     worst = torch.argmax(losses)
-    indices = [("_best_", best), ("_worst_", worst), ("_18_", 18)]
+    second_worst = torch.argsort(losses)[-2]
+    middle = torch.argsort(losses)[losses.shape[0]//2]
+    indices = [("_best_", best), ("_worst_", worst), ("_18_", 18), ("_6_", 6), ("_second_worst_", second_worst), ("_middle_", middle)]
 
     for name, idx in indices:
-        plot_results(model, X[idx,:,:].to(device), 
+        y_pred = plot_results(model, X[idx,:,:].to(device), 
                        y[idx,:].to(device), 
                        save_path=prefix_path + name + sufix_path, 
                        transformer_with_decoder=transformer_with_decoder)
+        y_pred = y_pred.reshape((1, -1))
+        y_truth = y[idx,:].reshape((1, -1))
+        # print("y_pred", y_pred.shape)
+        # print("y[idx,:]", y[idx,:].shape)
+        rmse = train_losses["MSE"](y_pred, y_truth)
+        rmse = torch.sqrt(rmse)
+        mae = train_losses["MAE"](y_pred, y_truth)
+        smape = train_losses["SMAPE"](y_pred, y_truth)
+        print(f"{name[1:-1]} on {set_type} set w.r.t. the {loss_name} metric with RMSE ${rmse:.4f}$, MAE ${mae:.4f}$ and SMAPE ${smape:.4f}$")
     
     plt.figure()
-    plt.hist(losses.unsqueeze(0).detach(), bins=30)
+    n, bins, _ = plt.hist(losses.unsqueeze(0).detach(), bins=30)
     plt.xlabel(loss_name)
     plt.ylabel("Nbr of occurences")
+    # print("n", n, np.max(n))
+    # print("bins", bins)
+    step = 2 if set_type == "train" else 1
+    plt.yticks(range(0, int(np.max(n)), step))
+    plt.grid()
     plt.savefig(prefix_path + f"_histo_" + sufix_path)
     plt.close()
 
