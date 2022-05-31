@@ -98,6 +98,8 @@ if __name__ == '__main__':
                         type=int, default=96)
     parser.add_argument('--dataset_size', help='Size of the dataset either small or big', 
                         type=str, default="small")
+    parser.add_argument('-g', '--gefcom', help='Use of gefcom Dataset', 
+                        action="store_true")
 
     # Training args
     parser.add_argument('-ep', '--epoch', help='Number of epoch',
@@ -141,10 +143,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     model_training = args.training
 
+    
+    prefix = "gefcom_" if args.gefcom else ""
+
     if args.rnn == "TransformerEncoderDecoder" or args.rnn == "Transformer":
-        model_name = f"{args.rnn}_{args.num_layers}_{args.loss}_{args.hidden_size}"
+        model_name = prefix + f"{args.rnn}_{args.num_layers}_{args.loss}_{args.hidden_size}"
     else:
-        model_name = f"{args.rnn}_{args.cell}_{args.loss}_{args.hidden_size}"
+        model_name = prefix + f"{args.rnn}_{args.cell}_{args.loss}_{args.hidden_size}"
 
     data = None
 
@@ -159,23 +164,34 @@ if __name__ == '__main__':
     print("device", device)
     batch_size = args.batch_size
     checkpoint = 1
-    quarter=96
-    farm=args.farm
-    gap=48
-    history_size=96
-    forecast_horizon=96
+    if args.gefcom:
+        quarter=24
+        farm=args.farm
+        gap=12
+        history_size=24
+        forecast_horizon=24
+        gefcom = True
+    else:
+        quarter=96
+        farm=args.farm
+        gap=48
+        history_size=96
+        forecast_horizon=96
+        gefcom = False
 
     # Retrieve dataset
     X_train, y_train = u.get_dataset_rnn(quarter=quarter, farm=farm, 
                                          type_data="train", gap=gap, 
                                          history_size=history_size, 
                                          forecast_horizon=forecast_horizon, 
-                                         size=args.dataset_size, tensor=True)
+                                         size=args.dataset_size, tensor=True,
+                                         gefcom=gefcom)
     X_valid, y_valid = u.get_dataset_rnn(quarter=quarter, farm=farm, 
                                          type_data="valid", gap=gap, 
                                          history_size=history_size, 
                                          forecast_horizon=forecast_horizon, 
-                                         size=args.dataset_size, tensor=True)
+                                         size=args.dataset_size, tensor=True,
+                                         gefcom=gefcom)
 
     print(f"X_train {X_train.shape}, y_train {y_train.shape}")
 
@@ -333,7 +349,8 @@ if __name__ == '__main__':
                                          type_data="test", gap=gap, 
                                          history_size=history_size, 
                                          forecast_horizon=forecast_horizon, 
-                                         size=args.dataset_size, tensor=True)
+                                         size=args.dataset_size, tensor=True,
+                                         gefcom=gefcom)
         test_loader = DataLoader(TensorDataset(X_test, y_test), 
                                  batch_size=batch_size, shuffle=shuffle, 
                                  drop_last=False)
