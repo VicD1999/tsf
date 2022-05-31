@@ -9,6 +9,8 @@ import argparse
 
 
 if __name__ == '__main__':
+    np.random.seed(0)
+
     models = {"RandomForestRegressor": RandomForestRegressor,
               "ExtraTreesRegressor": ExtraTreesRegressor,
               "LinearRegression": LinearRegression,
@@ -23,6 +25,13 @@ if __name__ == '__main__':
     parser.add_argument('-c_t','--continue_training',
         help='Continue the training. Requires the path number of the last forest trained', 
         required=False, default=0, type=int)
+
+    parser.add_argument('-g', '--gefcom', help='Use of gefcom Dataset', 
+                        action="store_true")
+    parser.add_argument('--farm', help='Farm',
+                        type=int, default=0, choices=[0,1,2])
+
+
     # Model Evaluation args
     parser.add_argument('-e','--evaluation', help='Eval model', 
                         action="store_true")
@@ -39,15 +48,36 @@ if __name__ == '__main__':
 
     model = models[args.model]
 
+    if args.gefcom:
+        max_quarter=24
+        farm=args.farm
+        gap=12
+        history_size=24
+        forecast_horizon=24
+        gefcom = True
+    else:
+        max_quarter=96
+        farm=args.farm
+        gap=48
+        history_size=96
+        forecast_horizon=96
+        gefcom = False
+
+    model_name = "gefcom_" + args.model if gefcom else args.model 
+
     start = args.continue_training
 
-    if not os.path.isdir(f'model/{args.model}'):
-        os.mkdir(f'model/{args.model}')
+    if not os.path.isdir(f'model/{model_name}'):
+        os.mkdir(f'model/{model_name}')
 
     if args.training:
-        for quarter in range(start, 96):
-            X, y = get_dataset_sklearn(quarter=quarter, farm=0, type_data="train", gap=48, 
-                                       history_size=96, forecast_horizon=96, size=args.dataset_size)
+        for quarter in range(start, max_quarter):
+            X, y = get_dataset_sklearn(quarter=quarter, farm=farm, 
+                                       type_data="train", gap=gap, 
+                                       history_size=history_size, 
+                                       forecast_horizon=forecast_horizon, 
+                                       size=args.dataset_size,
+                                       gefcom=gefcom)
             if quarter % 12 == 0:
                 print("X", X.shape)
                 print("y", y.shape)
@@ -68,24 +98,24 @@ if __name__ == '__main__':
                 rfr = rfr.fit(X, y)
 
                 # save
-                with open(f'model/{args.model}/{args.model}_{quarter}.pkl','wb') as f:
+                with open(f'model/{model_name}/{model_name}_{quarter}.pkl','wb') as f:
                     pickle.dump(rfr, f)
 
             else:
-                with open(f'model/{args.model}/{args.model}_{quarter}.pkl', 'rb') as f:
+                with open(f'model/{model_name}/{model_name}_{quarter}.pkl', 'rb') as f:
                     rfr = pickle.load(f)
 
 
     if args.evaluation:
-        fh = 96
+        fh = forecast_horizon
         quarter = 0
 
-        X_train, y_train = get_dataset_sklearn(quarter=quarter, farm=0, type_data="train", gap=48, 
-                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
-        X_valid, y_valid = get_dataset_sklearn(quarter=quarter, farm=0, type_data="valid", gap=48, 
-                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
-        X_test, y_test = get_dataset_sklearn(quarter=quarter, farm=0, type_data="test", gap=48, 
-                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
+        X_train, y_train = get_dataset_sklearn(quarter=quarter, farm=farm, type_data="train", gap=gap, 
+                                   history_size=history_size, forecast_horizon=forecast_horizon, size=args.dataset_size, gefcom=gefcom)
+        X_valid, y_valid = get_dataset_sklearn(quarter=quarter, farm=farm, type_data="valid", gap=gap, 
+                                   history_size=history_size, forecast_horizon=forecast_horizon, size=args.dataset_size, gefcom=gefcom)
+        X_test, y_test = get_dataset_sklearn(quarter=quarter, farm=farm, type_data="test", gap=gap, 
+                                   history_size=history_size, forecast_horizon=forecast_horizon, size=args.dataset_size, gefcom=gefcom)
 
         num_samples_train = X_train.shape[0]
         num_samples_valid = X_valid.shape[0]
@@ -102,15 +132,15 @@ if __name__ == '__main__':
 
         for quarter in range(fh):
             print("quarter", quarter)
-            X_train, y_train = get_dataset_sklearn(quarter=quarter, farm=0, type_data="train", gap=48, 
-                                       history_size=96, forecast_horizon=96, size=args.dataset_size)
-            X_valid, y_valid = get_dataset_sklearn(quarter=quarter, farm=0, type_data="valid", gap=48, 
-                                       history_size=96, forecast_horizon=96, size=args.dataset_size)
-            X_test, y_test = get_dataset_sklearn(quarter=quarter, farm=0, type_data="test", gap=48, 
-                                   history_size=96, forecast_horizon=96, size=args.dataset_size)
+            X_train, y_train = get_dataset_sklearn(quarter=quarter, farm=farm, type_data="train", gap=gap, 
+                                       history_size=history_size, forecast_horizon=forecast_horizon, size=args.dataset_size, gefcom=gefcom)
+            X_valid, y_valid = get_dataset_sklearn(quarter=quarter, farm=farm, type_data="valid", gap=gap, 
+                                       history_size=history_size, forecast_horizon=forecast_horizon, size=args.dataset_size, gefcom=gefcom)
+            X_test, y_test = get_dataset_sklearn(quarter=quarter, farm=farm, type_data="test", gap=gap, 
+                                   history_size=history_size, forecast_horizon=forecast_horizon, size=args.dataset_size, gefcom=gefcom)
             
             print("X_train", X_train.shape)
-            rfr = load_sklearn_model(path_to_model=f"model/{args.model}/{args.model}_{quarter}.pkl")        
+            rfr = load_sklearn_model(path_to_model=f"model/{model_name}/{model_name}_{quarter}.pkl")        
 
             Y_train[:,quarter] = rfr.predict(X_train)
             Y_valid[:,quarter] = rfr.predict(X_valid)
@@ -125,37 +155,37 @@ if __name__ == '__main__':
         y_valid = Y_valid_truth
         y_test = Y_test_truth
 
-        path_save_image = f"results/figure/{args.model}/"
+        path_save_image = f"results/figure/{model_name}/"
         if not os.path.isdir(path_save_image):
             os.mkdir(path_save_image)
 
         losses_train = np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1)) # [rmse(Y_train[i,:],y_train[i,:fh]) for i in range(num_samples_train)] # np.sqrt(np.mean(np.square(Y_train - y_train[:,:fh]), axis=1))
-        simple_plot(truth=y_train[0,:fh], forecast=Y_train[0], periods=fh, save=path_save_image + f"{args.model}_train.png")
+        simple_plot(truth=y_train[0,:fh], forecast=Y_train[0], periods=fh, save=path_save_image + f"{model_name}_train.png")
         print(f"rmse: {np.mean(losses_train):.4f} \pm {np.std(losses_train):.4f}")
 
         losses_valid = np.sqrt(np.mean(np.square(Y_valid - y_valid[:,:fh]), axis=1)) # [rmse(Y_valid[i,:],y_valid[i,:fh]) for i in range(num_samples_valid)]# np.sqrt(np.mean(np.square(Y_valid - y_valid[:,:fh]), axis=1))
-        simple_plot(truth=y_valid[0,:fh], forecast=Y_valid[0], periods=fh, save=path_save_image + f"{args.model}_valid.png")
+        simple_plot(truth=y_valid[0,:fh], forecast=Y_valid[0], periods=fh, save=path_save_image + f"{model_name}_valid.png")
         print(f"rmse: {np.mean(losses_valid):.4f} \pm {np.std(losses_valid):.4f}")
 
         losses_test = np.sqrt(np.mean(np.square(Y_test - y_test[:,:fh]), axis=1)) # [rmse(Y_valid[i,:],y_valid[i,:fh]) for i in range(num_samples_valid)]# np.sqrt(np.mean(np.square(Y_valid - y_valid[:,:fh]), axis=1))
-        simple_plot(truth=y_valid[0,:fh], forecast=Y_test[0], periods=fh, save=path_save_image + f"{args.model}_test.png")
+        simple_plot(truth=y_valid[0,:fh], forecast=Y_test[0], periods=fh, save=path_save_image + f"{model_name}_test.png")
         print(f"rmse: {np.mean(losses_test):.4f} \pm {np.std(losses_test):.4f}")
 
         best = np.argmin(losses_train)
         print(f"Best rmse: {losses_train[best]}")
-        simple_plot(truth=y_train[best,:fh], forecast=Y_train[best], periods=96, save=path_save_image + f"{args.model}_train_best.png")
+        simple_plot(truth=y_train[best,:fh], forecast=Y_train[best], periods=96, save=path_save_image + f"{model_name}_train_best.png")
 
         worst = np.argmax(losses_train)
         print("Worse index", worst)
         print(f"Worse rmse: {losses_train[worst]}")
-        simple_plot(truth=y_train[worst,:fh], forecast=Y_train[worst], periods=96, save=path_save_image + f"{args.model}_train_worst.png")
+        simple_plot(truth=y_train[worst,:fh], forecast=Y_train[worst], periods=96, save=path_save_image + f"{model_name}_train_worst.png")
 
         best = np.argmin(losses_valid)
         print(f"Best rmse: {losses_valid[best]}")
-        simple_plot(truth=y_valid[best,:fh], forecast=Y_valid[best], periods=96, save=path_save_image + f"{args.model}_valid_best.png")
+        simple_plot(truth=y_valid[best,:fh], forecast=Y_valid[best], periods=96, save=path_save_image + f"{model_name}_valid_best.png")
 
         worst = np.argmax(losses_valid)
         print(f"Worse rmse: {losses_valid[worst]}")
-        simple_plot(truth=y_valid[worst,:fh], forecast=Y_valid[worst], periods=96, save=path_save_image + f"{args.model}_valid_worst.png")
+        simple_plot(truth=y_valid[worst,:fh], forecast=Y_valid[worst], periods=96, save=path_save_image + f"{model_name}_valid_worst.png")
 
 
