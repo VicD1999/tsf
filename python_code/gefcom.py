@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt 
+import util as u
 
 
 def create_gefcom_dataset():
@@ -61,7 +62,7 @@ def preprocess(df):
 
 
 if __name__ == '__main__':
-    create_gefcom_dataset()
+    # create_gefcom_dataset()
 
     df = open_gefcom()
 
@@ -69,15 +70,28 @@ if __name__ == '__main__':
 
     print(df['TARGETVAR'].isnull().sum().sum())
 
-    train_set, valid_set, test_set = get_split_dataset(df=df)
+    df_train, df_valid, df_test = get_split_dataset(df)
 
-    #print(train_set.describe())
-    #print()
+    # for farm in range():
+    farm = 1
+    print("Create dataset of farm", farm)
+    
+    
+    # HERE It is a small dataset of only 385 days
+    X_histo, X_forecast, y = u.small_dataset(df_train, type_data="train", gap=12, farm=1, save=True, gefcom=True)
+    print("X_histo", X_histo.shape)
+    print("X_forecast", X_forecast.shape)
+    print("y", y.shape)
 
-    print("Valid set:", valid_set)
-    print()
+    X_histo, X_forecast, y = u.small_dataset(df_valid, type_data="valid", gap=12, farm=1, save=True, gefcom=True)
+    print("X_histo", X_histo.shape)
+    print("X_forecast", X_forecast.shape)
+    print("y", y.shape)
+    # print("y", y)
 
-    #print(test_set.describe())
-    #print()
 
+    X_histo, X_forecast, y = u.small_dataset(df_test, type_data="test", gap=12, farm=1, save=True, gefcom=True)
+    print("X_histo", X_histo.shape)
+    print("X_forecast", X_forecast.shape)
+    print("y", y.shape)
 

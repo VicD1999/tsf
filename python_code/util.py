@@ -997,7 +997,9 @@ def big_dataset(new_df, type_data, gap=0, farm=0):
 
     return X_histo, X_forecast, y
 
-def small_dataset(new_df, type_data, gap=0, farm=0):
+
+
+def small_dataset(new_df, type_data, gap=0, farm=0, save=True, gefcom=False):
     """
     Creates a small dataset at each 96 time steps with a forecasting horizon of 
     96 steps.
@@ -1021,27 +1023,45 @@ def small_dataset(new_df, type_data, gap=0, farm=0):
         X_forecast: numpy array of size (num_samples, forecast_horizon+gap, num_forecast_features)
         y: numpy array of size (num_samples, forecast_horizon)
     """    
+    
+    
+    if gefcom:
+        new_df = new_df[new_df["ZONEID"] == farm]
+        new_df = create_HYD(new_df)
+        history_size = 24
+        forecast_horizon = 24
+        histo_features = ['U10', 'V10',
+                      'U100', 'V100',
+                      f'TARGETVAR']
+        forecast_features = ['U10', 'V10','U100', 'V100',]
+    else:
+        history_size = 96
+        forecast_horizon = 96
+        histo_features = ['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
+                          'histoTemperature0_80', 'histoWindSpeedNorm0_100',
+                          'histoWindSpeedAngle0_100', 'histoTemperature0_100',
+                          f'prod_wf0']
+        forecast_features = ['windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
+                         'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100']
+        
     new_df.reset_index(inplace=True)
     skip_half_day = new_df[new_df["HOUR"] == 12].index[0]
     # print(new_df[new_df["HOUR"] == 12].index)
     # print("skip_half_day", skip_half_day)
-    history_size = 96
-    forecast_horizon = 96
-    histo_features = ['histoWindSpeedNorm0_80', 'histoWindSpeedAngle0_80',
-                      'histoTemperature0_80', 'histoWindSpeedNorm0_100',
-                      'histoWindSpeedAngle0_100', 'histoTemperature0_100',
-                      f'prod_wf0']
+    
+    
     num_histo_features = len(histo_features)
-    forecast_features = ['windSpeedNorm0_80', 'windSpeedAngle0_80', 'temperature0_80',
-                         'windSpeedNorm0_100', 'windSpeedAngle0_100', 'temperature0_100']
+    
     num_forecast_features = len(forecast_features)
     
     num_samples= (len(new_df)//(history_size)) - 2 
     # print(num_samples)
-    get_date = ['YEAR', 'DAYOFYEAR', 'HOUR', 'MIN']
+    get_date = ['YEAR', 'DAYOFYEAR', 'HOUR']
 
     # for regressor t+1 only 6 forecast
     # for regressor t+n 6*n forecasts
+    
+    target_name = "TARGETVAR" if gefcom else "prod_wf0"
 
     X_histo = np.empty((num_samples, history_size, num_histo_features))
     X_forecast = np.empty((num_samples, forecast_horizon+gap, num_forecast_features))
@@ -1058,20 +1078,21 @@ def small_dataset(new_df, type_data, gap=0, farm=0):
             # print("forecast", new_df[get_date].iloc[skip_half_day+(t+1)*history_size:skip_half_day+(t+1)*history_size+(gap+forecast_horizon)])
             X_forecast[t,:,:] = forecast
             # print("y", new_df[get_date].iloc[skip_half_day+(t+1)*history_size+gap:skip_half_day+(t+1)*history_size+gap+forecast_horizon])
-            y[t] = new_df["prod_wf0"].iloc[skip_half_day+(t+1)*history_size+gap:skip_half_day+(t+1)*history_size+gap+forecast_horizon]
+            y[t] = new_df[target_name].iloc[skip_half_day+(t+1)*history_size+gap:skip_half_day+(t+1)*history_size+gap+forecast_horizon]
 
         except:
             print(t, num_samples)
-
-    np.save(f"data/output15/X{farm}_small_{type_data}_histo_{history_size}_gap_{gap}.npy" , X_histo)
-    np.save(f"data/output15/X{farm}_small_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy" , X_forecast)
-    np.save(f"data/output15/y{farm}_small_{type_data}_{forecast_horizon}_gap_{gap}.npy", y)
     
+    if save:
+        prefix = "data/gefcom/" if gefcom else "data/output15/" 
+        np.save(prefix + f"X{farm}_small_{type_data}_histo_{history_size}_gap_{gap}.npy" , X_histo)
+        np.save(prefix + f"X{farm}_small_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy" , X_forecast)
+        np.save(prefix + f"y{farm}_small_{type_data}_{forecast_horizon}_gap_{gap}.npy", y)
 
     return X_histo, X_forecast, y
 
 
-def get_dataset_sklearn(quarter, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big"):
+def get_dataset_sklearn(quarter, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big", gefcom=False):
     """
     args:
         quarter: integer between 0 and 95
@@ -1081,28 +1102,31 @@ def get_dataset_sklearn(quarter, farm=0, type_data="train", gap=0, history_size=
         X: features matrix with history and forecast variable
         y: target vector for quarter quarter
     """
-    histo = np.load(f"data/output15/X{farm}_{size}_{type_data}_histo_{history_size}_gap_{gap}.npy")
-    forecast = np.load(f"data/output15/X{farm}_{size}_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
+    prefix = "data/gefcom/" if gefcom else "data/output15/" 
+    
+    histo = np.load(prefix + f"X{farm}_{size}_{type_data}_histo_{history_size}_gap_{gap}.npy")
+    forecast = np.load(prefix + f"X{farm}_{size}_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
 
     histo = histo.reshape((histo.shape[0], histo.shape[1]*histo.shape[2]))
     forecast =  forecast[:,:gap+quarter,:].reshape(forecast.shape[0], (gap+quarter)*forecast.shape[2])
 
     X = np.concatenate([histo, forecast], axis=1)
 
-    y = np.load(f"data/output15/y{farm}_{size}_{type_data}_{forecast_horizon}_gap_{gap}.npy")
-
+    y = np.load(prefix + f"y{farm}_{size}_{type_data}_{forecast_horizon}_gap_{gap}.npy")
+    print("y", y.shape)
     y = y[:,quarter]
 
     return X, y
 
 
-def get_dataset_rnn(quarter, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big", tensor=False):
+def get_dataset_rnn(quarter, farm=0, type_data="train", gap=0, history_size=96, forecast_horizon=96, size="big", tensor=False, gefcom=False):
     """
     
     """
-    histo = np.load(f"data/output15/X{farm}_{size}_{type_data}_histo_{history_size}_gap_{gap}.npy")
-    forecast = np.load(f"data/output15/X{farm}_{size}_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
-    y = np.load(f"data/output15/y{farm}_{size}_{type_data}_{forecast_horizon}_gap_{gap}.npy")
+    prefix = "data/gefcom/" if gefcom else "data/output15/" 
+    histo = np.load(prefix + f"X{farm}_{size}_{type_data}_histo_{history_size}_gap_{gap}.npy")
+    forecast = np.load(prefix + f"X{farm}_{size}_{type_data}_forecast_{forecast_horizon}_gap_{gap}.npy")
+    y = np.load(prefix + f"y{farm}_{size}_{type_data}_{forecast_horizon}_gap_{gap}.npy")
     
     forecast = forecast[:,:gap+quarter,:]
     if forecast.shape[2] != histo.shape[2]:
@@ -1183,4 +1207,20 @@ def to_bin(ele, nbins=15):
     for i in range(1,nbins+1):
         if ele < i*(1/nbins):
             return i
+
+def create_HYD(df):
+    df["ISO"] = df["TIMESTAMP"].apply(f)
+    df["ISO"] = df["ISO"].apply(datetime.datetime.fromisoformat)
+    df["YEAR"]      = df["ISO"].map(lambda x: x.year)
+    df["DAYOFYEAR"] = df["ISO"].map(lambda x: x.timetuple().tm_yday)
+    df["HOUR"]      = df["ISO"].map(lambda x: x.hour)
+    return df
+
+def f(date):
+    ymd = date[:4] + "-" + date[4:6] + "-" + date[6:8] + " "
+    if len(date) == 13:
+        h = "0" + date[-4:]
+        return ymd + h
+    else:
+        return ymd + date[-5:]
 
