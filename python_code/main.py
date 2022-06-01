@@ -390,140 +390,162 @@ if __name__ == '__main__':
 
     
     if args.comparison:
-
+        hidden_size2 = 256
         hidden_size = 512
         hidden_size1 = 1024
 
-        model_names = [ f"results/simple_rnn_GRU_MSE_{hidden_size1}.csv",
-                        f"results/history_forecast_GRU_MSE_{hidden_size1}.csv",
-                        f"results/architecture_GRU_MSE_{hidden_size1}.csv",
-                        f"results/simple_rnn_GRU_MSE_{hidden_size}.csv",
-                        f"results/history_forecast_GRU_MSE_{hidden_size}.csv",
-                        f"results/architecture_GRU_MSE_{hidden_size}.csv",
-                        f"results/simple_rnn_GRU_MSE_512.csv",
-                        f"results/history_forecast_GRU_MSE_512.csv",
-                        # f"results/history_forecast_GRU_MAE_512.csv",
-                        # f"results/history_forecast_GRU_SMAPE_512.csv",
-                        # f"results/history_forecast_GRU_MSEsMAPE_512.csv",
-                        # f"results/architecture_GRU_MSE_512.csv",
-
-                        # "results/simple_rnn_None_MSE_512.csv",
-                        # "results/history_forecast_GRU_MSE_512.csv",
-                        # "results/architecture_None_MSE_512.csv",
-                        # "results/simple_rnn_GRU_MSEsMAPE_256.csv",
-                        # "results/history_forecast_GRU_MSEsMAPE_256.csv",
-                        # "results/architecture_GRU_MSEsMAPE_256.csv",
-                        # "results/architecture_history_forecast_GRU_MSE_256.csv",
-                        # "results/history_forecast_BRC_MSE_512.csv",
-                        # "results/history_forecast_HybridRNN_MSE_512.csv",
-                        # "results/history_forecast_nBRC_MSE_512.csv",
-                        # "results/ahf_GRU_MSE_256.csv"
+        model_names = [ f"results/gefcom_simple_rnn_GRU_MSE_{hidden_size1}.csv",
+                        f"results/gefcom_history_forecast_GRU_MSE_{hidden_size1}.csv",
+                        f"results/gefcom_architecture_GRU_MSE_{hidden_size1}.csv",
+                        f"results/gefcom_simple_rnn_GRU_MSE_{hidden_size}.csv",
+                        f"results/gefcom_history_forecast_GRU_MSE_{hidden_size}.csv",
+                        f"results/gefcom_architecture_GRU_MSE_{hidden_size}.csv",
+                        f"results/gefcom_simple_rnn_GRU_MSE_{hidden_size2}.csv",
+                        f"results/gefcom_history_forecast_GRU_MSE_{hidden_size2}.csv",
+                        f"results/gefcom_architecture_GRU_MSE_{hidden_size2}.csv",
                         ]
 
+        # model_names = [
+        #                 f"results/gefcom_history_forecast_GRU_MSE_{hidden_size}.csv",
+        #                 f"results/gefcom_history_forecast_GRU_MSE_25.csv"
+        #                 ]
 
-        model_names = [
-                       
-                       # 'results/Transformer_4_MSE_256.csv', 
-                       # 'results/Transformer_6_MSE_256.csv',
-                       # 'results/Transformer_8_MSE_256.csv',
-                       # 'results/Transformer_4_MSE_512.csv', 
-                       # 'results/Transformer_6_MSE_512.csv',
-                       # 'results/Transformer_8_MSE_512.csv',
-                       
-                       
-                       # 'results/TransformerEncoderDecoder_4_MSE_256.csv', 
-                       'results/TransformerEncoderDecoder_6_MSE_256.csv',
-                       'results/TransformerEncoderDecoder_8_MSE_256.csv',
-                       # 'results/TransformerEncoderDecoder_4_MSE_512.csv', 
-                       'results/TransformerEncoderDecoder_6_MSE_512.csv',
-                       'results/TransformerEncoderDecoder_8_MSE_512.csv',
-                       
-                       ]
+        # model_names = [ f"results/simple_rnn_GRU_MSE_{hidden_size1}.csv",
+        #                 f"results/history_forecast_GRU_MSE_{hidden_size1}.csv",
+        #                 f"results/architecture_GRU_MSE_{hidden_size1}.csv",
+        #                 f"results/simple_rnn_GRU_MSE_{hidden_size}.csv",
+        #                 f"results/history_forecast_GRU_MSE_{hidden_size}.csv",
+        #                 f"results/architecture_GRU_MSE_{hidden_size}.csv",
+        #                 f"results/simple_rnn_GRU_MSE_512.csv",
+        #                 f"results/history_forecast_GRU_MSE_512.csv",
+        #                 # f"results/history_forecast_GRU_MAE_512.csv",
+        #                 # f"results/history_forecast_GRU_SMAPE_512.csv",
+        #                 # f"results/history_forecast_GRU_MSEsMAPE_512.csv",
+        #                 # f"results/architecture_GRU_MSE_512.csv",
 
+        #                 # "results/simple_rnn_None_MSE_512.csv",
+        #                 # "results/history_forecast_GRU_MSE_512.csv",
+        #                 # "results/architecture_None_MSE_512.csv",
+        #                 # "results/simple_rnn_GRU_MSEsMAPE_256.csv",
+        #                 # "results/history_forecast_GRU_MSEsMAPE_256.csv",
+        #                 # "results/architecture_GRU_MSEsMAPE_256.csv",
+        #                 # "results/architecture_history_forecast_GRU_MSE_256.csv",
+        #                 # "results/history_forecast_BRC_MSE_512.csv",
+        #                 # "results/history_forecast_HybridRNN_MSE_512.csv",
+        #                 # "results/history_forecast_nBRC_MSE_512.csv",
+        #                 # "results/ahf_GRU_MSE_256.csv"
+        #                 ]
+
+
+        # model_names = [
+                       
+        #                # 'results/Transformer_4_MSE_256.csv', 
+        #                # 'results/Transformer_6_MSE_256.csv',
+        #                # 'results/Transformer_8_MSE_256.csv',
+        #                # 'results/Transformer_4_MSE_512.csv', 
+        #                # 'results/Transformer_6_MSE_512.csv',
+        #                # 'results/Transformer_8_MSE_512.csv',
+                       
+                       
+        #                # 'results/TransformerEncoderDecoder_4_MSE_256.csv', 
+        #                'results/TransformerEncoderDecoder_6_MSE_256.csv',
+        #                'results/TransformerEncoderDecoder_8_MSE_256.csv',
+        #                # 'results/TransformerEncoderDecoder_4_MSE_512.csv', 
+        #                'results/TransformerEncoderDecoder_6_MSE_512.csv',
+        #                'results/TransformerEncoderDecoder_8_MSE_512.csv',
+                       
+        #                ]
+        model_names = [ 
+                        "results/gefcom_Transformer_1_MSE_256.csv",
+                        "results/gefcom_TransformerEncoderDecoder_1_MSE_256.csv"
+
+                        ]
 
         best = u.plot_multiple_curve_losses(model_names, 
-            save_path=f"results/figure/transformer_encdec_curve_losses.pdf")
+            save_path=f"results/figure/rnn_gefcom_curve_losses.pdf")
 
-        # assess = {}
-        # for i, (key, value) in enumerate(best.items()):
-        #     model_name, cell, loss, hidden_size = u.split_name_hidden_size(model_names[i])
-        #     if model_name.startswith("Transformer"):
-        #         num_layers = int(cell)
-
-
-        #     model = u.init_model(rnn=rnns[model_name], input_size=input_size, 
-        #                  hidden_size=hidden_size, seq_length=seq_length, 
-        #                  output_size=output_size, gap_length=gap, 
-        #                  histo_length=history_size, nhead=num_layers, 
-        #                  nlayers=num_layers, device=device, 
-        #                  cell_name=cell)
-        #     model = model.to(device)
-        #     ep = str(int(value))
-        #     path_to_model = f"model/{key}/{key}_{ep}.model"
-        #     print("path to best model", path_to_model)
-
-        #     u.exist_or_download(path_to_model, model_name=key)
-        #     model.load_state_dict(torch.load(path_to_model, map_location=torch.device(device)), strict=False)
-
-        #     transformer_with_decoder = ("TransformerEncoderDecoder" == key[:len("TransformerEncoderDecoder")])
-        #     if transformer_with_decoder:
-        #         print("Assessment with decoder")
-        #     assess[key] = assess_model(model, plot=False, verbose=False)
+        assess = {}
+        for i, (key, value) in enumerate(best.items()):
+            model_name, cell, loss, hidden_size = u.split_name_hidden_size(model_names[i])
+            if model_name.startswith("Transformer"):
+                num_layers = int(cell)
+            if model_name.startswith("gefcom_"):
+                model_name = model_name[7:]
 
 
-        # def name(key):
-        #     name = "" 
-        #     for w in key.split("_"):
-        #         name += w + " "
+            model = u.init_model(rnn=rnns[model_name], input_size=input_size, 
+                         hidden_size=hidden_size, seq_length=seq_length, 
+                         output_size=output_size, gap_length=gap, 
+                         histo_length=history_size, nhead=num_layers, 
+                         nlayers=num_layers, device=device, 
+                         cell_name=cell)
+            model = model.to(device)
+            ep = str(int(value))
+            path_to_model = f"model/{key}/{key}_{ep}.model"
+            print("path to best model", path_to_model)
 
-        #     return name
+            u.exist_or_download(path_to_model, model_name=key)
+            model.load_state_dict(torch.load(path_to_model, map_location=torch.device(device)), strict=False)
 
-
-        # print()
-        # print("LATEX PRINT")
-        # print(f"Model & train & valid & test \\\\")
-        # for key in best.keys():
-        #     # print("key", key)
-        #     # print("assess[key]", assess[key])
-        #     # print("assess[key] valid", assess[key]["valid"])
-        #     loss_train = assess[key]["train"]["RMSE"]
-        #     loss_val = assess[key]["valid"]["RMSE"]
-        #     loss_test = assess[key]["test"]["RMSE"]
-
-        #     print(f"{name(key)} & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ & ${torch.mean(loss_val):.4f} \pm {torch.std(loss_val):.4f}$ & ${torch.mean(loss_test):.4f} \pm {torch.std(loss_test):.4f}$ \\\\")
+            transformer_with_decoder = ("TransformerEncoderDecoder" == key[:len("TransformerEncoderDecoder")]) or ("TransformerEncoderDecoder" == key[len("gefcom_"):len("gefcom_TransformerEncoderDecoder")]) 
+            if transformer_with_decoder:
+                print("Assessment with decoder")
+            assess[key] = assess_model(model, plot=False, verbose=False)
 
 
-        # print()
-        # print("LATEX PRINT ALL METRICS")
-        # print("METRICS: ", assess[key]["train"].keys())
-        # print(f"Model & train & valid & test \\\\")
-        # for key in best.keys():
-        #     # print("key", key)
-        #     # print("assess[key]", assess[key])
-        #     # print("assess[key] valid", assess[key]["valid"])
-        #     print(f"{name(key)}")
-        #     for set_type in ["train", "valid", "test"]:
-        #         for metric in assess[key][set_type].keys():
-        #             loss_train = assess[key][set_type][metric]
-        #             print(f" & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ ")
-        #     print(f"\\\\")
+        def name(key):
+            name = "" 
+            for w in key.split("_"):
+                name += w + " "
 
-        # print()
-        # print("LATEX PRINT ALL METRICS TRASNPOSED")
-        # print("METRICS: ", assess[key]["train"].keys())
-        # print(f"Model & Loss &")
-        # for key in best.keys():
-        #     print(f"{name(key)}")
-        # print("\\\\")
+            return name
+
+
+        print()
+        print("LATEX PRINT")
+        print(f"Model & train & valid & test \\\\")
+        for key in best.keys():
+            # print("key", key)
+            # print("assess[key]", assess[key])
+            # print("assess[key] valid", assess[key]["valid"])
+            loss_train = assess[key]["train"]["RMSE"]
+            loss_val = assess[key]["valid"]["RMSE"]
+            loss_test = assess[key]["test"]["RMSE"]
+
+            print(f"{name(key)} & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ & ${torch.mean(loss_val):.4f} \pm {torch.std(loss_val):.4f}$ & ${torch.mean(loss_test):.4f} \pm {torch.std(loss_test):.4f}$ \\\\")
+
+
+        print()
+        print("LATEX PRINT ALL METRICS")
+        print("METRICS: ", assess[key]["train"].keys())
+        print(f"Model & train & valid & test \\\\")
+        for key in best.keys():
+            # print("key", key)
+            # print("assess[key]", assess[key])
+            # print("assess[key] valid", assess[key]["valid"])
+            print(f"{name(key)}")
+            for set_type in ["train", "valid", "test"]:
+                for metric in assess[key][set_type].keys():
+                    loss_train = assess[key][set_type][metric]
+                    print(f" & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ ")
+            print(f"\\\\")
+
+        print()
+        print("LATEX PRINT ALL METRICS TRASNPOSED")
+        print("METRICS: ", assess[key]["train"].keys())
+        print(f"Model & Loss &")
+        for key in best.keys():
+            print(f"{name(key)}")
+        print("\\\\")
         
-        # for set_type in ["train", "valid", "test"]:
-        #     print(f"{set_type}")
-        #     for metric in assess[key][set_type].keys():
-        #         print(f" & {metric}")
-        #         for key in best.keys():
-        #             loss_train = assess[key][set_type][metric]
-        #             print(f" & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ ")
-        #     print(f"\\\\")
+        for set_type in ["train", "valid", "test"]:
+            print(f"{set_type}")
+            for metric in assess[key][set_type].keys():
+                print(f" & {metric}")
+                for key in best.keys():
+                    loss_train = assess[key][set_type][metric]
+                    print(f" & ${torch.mean(loss_train):.4f} \pm {torch.std(loss_train):.4f}$ ")
+            print(f"\\\\")
 
 
 

@@ -10,9 +10,10 @@ class simple_rnn(nn.Module):
     input x = (B,L,P)
     output y = (B,m)
     """
-    def __init__(self, input_size, hidden_size, output_size, seq_length):
+    def __init__(self, input_size, hidden_size, output_size, history_size):
         super(simple_rnn, self).__init__()
         self.hidden_size = hidden_size
+        self.history_size = history_size
 
         self.encoder = nn.GRU(input_size-1, hidden_size, num_layers=1, batch_first=True)
         torch.nn.init.orthogonal_(self.encoder.weight_hh_l0)
@@ -34,7 +35,7 @@ class simple_rnn(nn.Module):
         # y[:,-1,:] = self.f(y[:,-1,:])
         # print("y", y[:,-1,:].shape)
         # print("x", x[:,:96,-1].shape)
-        concat = torch.cat([y[:,-1,:], x[:,:96,-1]], axis=1)
+        concat = torch.cat([y[:,-1,:], x[:,:self.history_size,-1]], axis=1)
         # print("concat", concat.shape)
         y = self.decoder(concat)
 
@@ -47,11 +48,12 @@ class architecture(nn.Module):
     input x = (B,L,P)
     output y = (B,m)
     """
-    def __init__(self, input_size, hidden_size, output_size, seq_length, gap_length):
+    def __init__(self, input_size, hidden_size, output_size, history_size, gap_length):
         super(architecture, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
         self.gap_length = gap_length
+        self.history_size = history_size
 
         self.hidden_size = hidden_size
 
@@ -68,7 +70,7 @@ class architecture(nn.Module):
 
                   
     def forward(self, x):
-        y, h = self.encoder(x[:,:96,:])
+        y, h = self.encoder(x[:,:self.history_size,:])
 
         y_hat = torch.empty((x.shape[0], self.gap_length+self.output_size))
         # print("y_hat", y_hat.shape)
@@ -76,7 +78,7 @@ class architecture(nn.Module):
         for i in range(self.gap_length+self.output_size):
             # print("y[:,-1,:]", y[:,-1,:].shape)
             # print("x[:,96+i,:-1]", x[:,96+i,:-1].shape)
-            concat = torch.cat([y[:,-1,:], x[:,95+i,:-1]], axis=1)
+            concat = torch.cat([y[:,-1,:], x[:,self.history_size-1+i,:-1]], axis=1)
             # print("concat", concat.shape)
             # print()
             y = self.decoder(concat)
@@ -85,7 +87,7 @@ class architecture(nn.Module):
             
             # print("x[:,96+i,:-1]", x[:,96+i,:-1].shape)
             # print("y", y.shape)
-            z_hat_y = torch.cat([x[:,95+i,:-1], y], axis=1).unsqueeze(1)
+            z_hat_y = torch.cat([x[:,self.history_size-1+i,:-1], y], axis=1).unsqueeze(1)
             # print("z_hat_y", z_hat_y.shape)
             y, h = self.encoder(z_hat_y, h)
             

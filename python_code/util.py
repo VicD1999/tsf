@@ -209,7 +209,7 @@ def init_model(rnn, input_size, hidden_size, seq_length, output_size,
 
     if rnn == architecture:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
-                     seq_length=seq_length, output_size=output_size,
+                     history_size=histo_length, output_size=output_size,
                      gap_length=gap_length)
     elif rnn == architecture_history_forecast:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
@@ -226,9 +226,11 @@ def init_model(rnn, input_size, hidden_size, seq_length, output_size,
                 output_size=output_size, histo_length=histo_length, gap_length=gap_length,
                 rnn_cell=cells[cell_name])
     elif rnn == Transformer:
-        model = rnn(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=nlayers, dropout=0.2, device=device)
+        model = rnn(d_model=input_size, nhead=nhead, d_hid=hidden_size, nlayers=nlayers, dropout=0.2, target_length=output_size, device=device)
     elif rnn == TransformerEncoderDecoder:
-        model = rnn(d_model=input_size, nlayers=nlayers, d_hid=hidden_size, device=device)
+        model = rnn(d_model=input_size, nlayers=nlayers, d_hid=hidden_size, target_length=output_size, device=device)
+    elif rnn == simple_rnn:
+        model = rnn(input_size=input_size, hidden_size=hidden_size, output_size=output_size, history_size=histo_length)
     else:
         model = rnn(input_size=input_size, hidden_size=hidden_size, 
                      seq_length=seq_length, output_size=output_size)
