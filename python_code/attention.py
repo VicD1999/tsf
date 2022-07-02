@@ -40,7 +40,8 @@ class Decoder(nn.Module):
         
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
 
-        self.out = nn.Linear(hidden_size, output_size)
+        self.out = nn.Sequential(nn.Linear(hidden_size, output_size),
+                                 nn.Sigmoid())
         
     def forward(self, x, s_i_1):
         """
@@ -125,15 +126,160 @@ class Attention_Net(nn.Module):
             
         return y
 
-if __name__ == '__main__':
-    X_train = torch.rand((32, 120, 5))
-    y_train = torch.rand((32, 20))
-    train_set_len = X_train.shape[0]
-    train = TensorDataset(X_train, y_train)
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)
 
-    model = Attention_Net(input_size=5, hidden_size=64, output_size=20, seq_length=120)
-    for x_batch, y_batch in train_loader:
-        output = model(x_batch)
-        print("output", output.shape)
-        break
+# class EncoderRNN(nn.Module):
+#     def __init__(self, input_size, hidden_size):
+#         super(EncoderRNN, self).__init__()
+#         self.hidden_size = hidden_size
+
+#         self.embedding = nn.Embedding(input_size, hidden_size)
+#         self.gru = nn.GRU(hidden_size, hidden_size)
+
+#     def forward(self, input, hidden):
+#         embedded = self.embedding(input).view(1, 1, -1)
+#         output = embedded
+#         output, hidden = self.gru(output, hidden)
+#         return output, hidden
+
+#     def initHidden(self):
+#         return torch.zeros(1, 1, self.hidden_size, device=device)
+
+# class DecoderRNN(nn.Module):
+#     def __init__(self, hidden_size, output_size):
+#         super(DecoderRNN, self).__init__()
+#         self.hidden_size = hidden_size
+
+#         self.embedding = nn.Embedding(output_size, hidden_size)
+#         self.gru = nn.GRU(hidden_size, hidden_size)
+#         self.out = nn.Linear(hidden_size, output_size)
+#         self.softmax = nn.LogSoftmax(dim=1)
+
+#     def forward(self, input, hidden):
+#         output = self.embedding(input).view(1, 1, -1)
+#         output = F.relu(output)
+#         output, hidden = self.gru(output, hidden)
+#         output = self.softmax(self.out(output[0]))
+#         return output, hidden
+
+#     def initHidden(self):
+#         return torch.zeros(1, 1, self.hidden_size, device=device)
+
+# class AttnDecoderRNN(nn.Module):
+#     def __init__(self, hidden_size, output_size, dropout_p=0.1, max_length=MAX_LENGTH):
+#         super(AttnDecoderRNN, self).__init__()
+#         self.hidden_size = hidden_size
+#         self.output_size = output_size
+#         self.dropout_p = dropout_p
+#         self.max_length = max_length
+
+#         self.embedding = nn.Embedding(self.output_size, self.hidden_size)
+#         self.attn = nn.Linear(self.hidden_size * 2, self.max_length)
+#         self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
+#         self.dropout = nn.Dropout(self.dropout_p)
+#         self.gru = nn.GRU(self.hidden_size, self.hidden_size)
+#         self.out = nn.Linear(self.hidden_size, self.output_size)
+
+#     def forward(self, input, hidden, encoder_outputs):
+#         embedded = self.embedding(input).view(1, 1, -1)
+#         embedded = self.dropout(embedded)
+
+#         attn_weights = F.softmax(
+#             self.attn(torch.cat((embedded[0], hidden[0]), 1)), dim=1)
+#         attn_applied = torch.bmm(attn_weights.unsqueeze(0),
+#                                  encoder_outputs.unsqueeze(0))
+
+#         output = torch.cat((embedded[0], attn_applied[0]), 1)
+#         output = self.attn_combine(output).unsqueeze(0)
+
+#         output = F.relu(output)
+#         output, hidden = self.gru(output, hidden)
+
+#         output = F.log_softmax(self.out(output[0]), dim=1)
+#         return output, hidden, attn_weights
+
+#     def initHidden(self):
+#         return torch.zeros(1, 1, self.hidden_size, device=device)
+
+
+
+if __name__ == '__main__':
+    # batch_size = 2
+    # X_train, y_train = torch.rand((32, 120, 5))
+    #  = torch.rand((32, 20))
+    # train_set_len = X_train.shape[0]
+    # train = TensorDataset(X_train, y_train)
+    # train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)
+
+    
+    # for x_batch, y_batch in train_loader:
+    #     output = model(x_batch)
+    #     print("output", output.shape)
+    #     break
+
+
+    import util as u
+    from torch.utils.data import TensorDataset, DataLoader
+    import torch.nn.functional as F
+
+    device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+
+    torch.manual_seed(0)
+
+    quarter=96
+    farm=0
+    gap=48
+    history_size=96
+    forecast_horizon=96
+    X_train, y_train = u.get_dataset_rnn(quarter=quarter, farm=farm, type_data="train", gap=gap, 
+                               history_size=history_size, forecast_horizon=forecast_horizon, size="small")
+    # X_valid, y_valid = u.get_dataset_rnn(quarter=quarter, farm=farm, type_data="valid", gap=gap, 
+    #                            history_size=history_size, forecast_horizon=forecast_horizon, size="small")
+
+    X_train = torch.from_numpy(X_train).float()
+    y_train = torch.from_numpy(y_train).float()
+
+    train = TensorDataset(X_train[:2,:,:], y_train[:2,:])
+
+    train_loader = DataLoader(train, batch_size=2, shuffle=True, drop_last=False)
+
+
+    # model = Transformer(d_model=7, nhead=7, d_hid=2048, nlayers=10, dropout=0.5, target_length=96, device=device)
+    # model = Transformer_enc_dec(d_model=7, nhead=9, d_hid=2048,
+    #                             nlayers=10, dropout=0.2, device=device)
+    model = Attention_Net(input_size=7, hidden_size=64, output_size=forecast_horizon, seq_length=history_size+gap+forecast_horizon)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+
+    for e in range(0, 500):
+        mean_loss = 0.
+
+        losses_train = None
+        for x_batch, y_batch in train_loader:
+            # print(x_batch.shape)
+            # print(y_batch.shape)
+            x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+            output = model(x_batch)
+            output = output.to(device)
+            loss = F.mse_loss(output, y_batch)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            loss_train = F.mse_loss(output, y_batch, reduction="none")
+            mse_tensor = torch.mean(loss_train, dim=1)
+            losses_train = mse_tensor if losses_train is None else \
+                                   torch.cat((losses_train, mse_tensor), dim=0)
+
+        mean_loss = torch.mean(losses_train)
+
+        print(f"epoch {e} loss {mean_loss}")
+
+    with torch.no_grad():
+        for x_batch, y_batch in train_loader:
+            output = model(x_batch)
+            loss = F.mse_loss(output, y_batch)
+        print("loss", loss.item())
+    # print("output", output.shape)
+
+    torch.save(model.state_dict(), 
+               "model/test.model")

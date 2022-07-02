@@ -73,8 +73,12 @@ def assess_model(model, plot=False, verbose=True):
             fontsize = "x-large"
             plt.xticks(fontsize=fontsize)
             plt.yticks(fontsize=fontsize)
-            plt.xlim((-1, 97))
-            plt.ylim((-0.07,0.21))
+            if args.gefcom:
+                plt.xlim((-1, 25))
+                plt.ylim((-0.07,0.30))
+            else:
+                plt.xlim((-1, 97))
+                plt.ylim((-0.07,0.21))
             plt.grid()
             plt.legend()
             plt.savefig(f"results/figure/{model_name}/{model_name}_{set_type}_timestamp.pdf", dpi=150)
@@ -390,16 +394,18 @@ if __name__ == '__main__':
 
     
     if args.comparison:
-        hidden_size2 = 256
-        hidden_size = 512
-        hidden_size1 = 1024
+        
+        hidden_size = 256
+        hidden_size1 = 512
+        hidden_size2 = 1024
 
-        model_names = [ f"results/gefcom_simple_rnn_GRU_MSE_{hidden_size1}.csv",
+        model_names = [ 
+                        # f"results/gefcom_simple_rnn_GRU_MSE_{hidden_size}.csv",
+                        # f"results/gefcom_history_forecast_GRU_MSE_{hidden_size}.csv",
+                        # f"results/gefcom_architecture_GRU_MSE_{hidden_size}.csv",
+                        f"results/gefcom_simple_rnn_GRU_MSE_{hidden_size1}.csv",
                         f"results/gefcom_history_forecast_GRU_MSE_{hidden_size1}.csv",
                         f"results/gefcom_architecture_GRU_MSE_{hidden_size1}.csv",
-                        f"results/gefcom_simple_rnn_GRU_MSE_{hidden_size}.csv",
-                        f"results/gefcom_history_forecast_GRU_MSE_{hidden_size}.csv",
-                        f"results/gefcom_architecture_GRU_MSE_{hidden_size}.csv",
                         f"results/gefcom_simple_rnn_GRU_MSE_{hidden_size2}.csv",
                         f"results/gefcom_history_forecast_GRU_MSE_{hidden_size2}.csv",
                         f"results/gefcom_architecture_GRU_MSE_{hidden_size2}.csv",
@@ -437,32 +443,68 @@ if __name__ == '__main__':
         #                 ]
 
 
-        # model_names = [
+        model_names = [
                        
-        #                # 'results/Transformer_4_MSE_256.csv', 
-        #                # 'results/Transformer_6_MSE_256.csv',
-        #                # 'results/Transformer_8_MSE_256.csv',
-        #                # 'results/Transformer_4_MSE_512.csv', 
-        #                # 'results/Transformer_6_MSE_512.csv',
-        #                # 'results/Transformer_8_MSE_512.csv',
+                       # 'results/Transformer_4_MSE_256.csv', 
+                       # 'results/Transformer_6_MSE_256.csv',
+                       # 'results/Transformer_8_MSE_256.csv',
+                       # 'results/Transformer_4_MSE_512.csv', 
+                       # 'results/Transformer_6_MSE_512.csv',
+                       # 'results/Transformer_8_MSE_512.csv',
+                       'results/gefcom_TransformerEncoderDecoder_1_MSE_256.csv', 
+                       'results/gefcom_TransformerEncoderDecoder_2_MSE_256.csv',
+                       # 'results/gefcom_TransformerEncoderDecoder_8_MSE_256.csv',
+                       'results/gefcom_TransformerEncoderDecoder_1_MSE_512.csv', 
+                       'results/gefcom_TransformerEncoderDecoder_2_MSE_512.csv',
+                       # 'results/gefcom_TransformerEncoderDecoder_8_MSE_512.csv',
+                       'results/gefcom_TransformerEncoderDecoder_1_MSE_1024.csv', 
+                       'results/gefcom_TransformerEncoderDecoder_2_MSE_1024.csv',
+                       # 'results/gefcom_TransformerEncoderDecoder_8_MSE_1024.csv',
                        
-                       
-        #                # 'results/TransformerEncoderDecoder_4_MSE_256.csv', 
-        #                'results/TransformerEncoderDecoder_6_MSE_256.csv',
-        #                'results/TransformerEncoderDecoder_8_MSE_256.csv',
-        #                # 'results/TransformerEncoderDecoder_4_MSE_512.csv', 
-        #                'results/TransformerEncoderDecoder_6_MSE_512.csv',
-        #                'results/TransformerEncoderDecoder_8_MSE_512.csv',
-                       
-        #                ]
-        model_names = [ 
-                        "results/gefcom_Transformer_1_MSE_256.csv",
-                        "results/gefcom_TransformerEncoderDecoder_1_MSE_256.csv"
+                       # 'results/gefcom_TransformerEncoderDecoder_4_MSE_256.csv', 
+                       # 'results/gefcom_TransformerEncoderDecoder_6_MSE_256.csv',
+                       # 'results/gefcom_TransformerEncoderDecoder_8_MSE_256.csv',
+                       # 'results/gefcom_TransformerEncoderDecoder_4_MSE_512.csv', 
+                       # 'results/gefcom_TransformerEncoderDecoder_6_MSE_512.csv',
+                       # 'results/gefcom_TransformerEncoderDecoder_8_MSE_512.csv',
+                       # 'results/gefcom_TransformerEncoderDecoder_4_MSE_1024.csv', 
+                       # 'results/gefcom_TransformerEncoderDecoder_6_MSE_1024.csv',
+                       # 'results/gefcom_TransformerEncoderDecoder_8_MSE_1024.csv',
 
-                        ]
+                       
+                       ]
+        # model_names = [ 
+        #                 # "results/gefcom_TransformerEncoderDecoder_1_MSE_128.csv",
+        #                 # "results/gefcom_Transformer_1_MAE_128.csv",
+        #                 # "results/gefcom_Transformer_1_MAE_256.csv",
+        #                 # "results/gefcom_Transformer_1_MAE_512.csv" , 
+        #                 # "results/gefcom_Transformer_1_MAE_1024.csv",  
+
+        #                 # "results/gefcom_Transformer_1_MSE_128.csv",
+        #                 # "results/gefcom_Transformer_1_MSE_256.csv",
+        #                 "results/gefcom_Transformer_1_MSE_512.csv",
+        #                 "results/gefcom_Transformer_1_MSE_1024.csv" ,
+
+        #                 # "results/gefcom_Transformer_2_MSE_256.csv",
+        #                 "results/gefcom_Transformer_2_MSE_512.csv",
+        #                 "results/gefcom_Transformer_2_MSE_1024.csv" ,
+
+        #                 # "results/gefcom_Transformer_4_MSE_256.csv",
+        #                 # "results/gefcom_Transformer_4_MSE_512.csv",
+        #                 # "results/gefcom_Transformer_4_MSE_1024.csv" ,
+
+        #                 # # "results/gefcom_Transformer_6_MSE_256.csv",
+        #                 # "results/gefcom_Transformer_6_MSE_512.csv",
+        #                 # "results/gefcom_Transformer_6_MSE_1024.csv" ,
+
+        #                 # # "results/gefcom_Transformer_8_MSE_256.csv",
+        #                 # "results/gefcom_Transformer_8_MSE_512.csv",
+        #                 # "results/gefcom_Transformer_8_MSE_1024.csv" ,
+
+        #                 ]
 
         best = u.plot_multiple_curve_losses(model_names, 
-            save_path=f"results/figure/rnn_gefcom_curve_losses.pdf")
+            save_path=f"results/figure/gefcom_transformer_enc_dec_curve_losses.pdf")
 
         assess = {}
         for i, (key, value) in enumerate(best.items()):

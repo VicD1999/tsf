@@ -19,40 +19,34 @@ rnns = u.rnns
 
 
 # Data Loading
-day = 96
+quarter = 96
 history_size=96 
 forecast_horizon=96
 size="small"
 gap=48
 farm=0
-# X_train, y_train = u.get_dataset_rnn(day=day, farm=farm, type_data="train", gap=gap, 
-#                            history_size=history_size, forecast_horizon=forecast_horizon, size="small")
-X_valid, y_valid = u.get_dataset_rnn(day=day, farm=farm, type_data="valid", gap=gap, 
-                           history_size=history_size, forecast_horizon=forecast_horizon, size=size)
-X_test, y_test = u.get_dataset_rnn(day=day, farm=farm, type_data="test", gap=gap, 
-                           history_size=history_size, forecast_horizon=forecast_horizon, size=size)
-
-# X_train = torch.from_numpy(X_train)
-# y_train = torch.from_numpy(y_train)
-
-X_valid = torch.from_numpy(X_valid)
-y_valid = torch.from_numpy(y_valid)
-
-X_test = torch.from_numpy(X_test)
-y_test = torch.from_numpy(y_test)
-
 device = torch.device('cpu')
 batch_size = 16
+# X_train, y_train = u.get_dataset_rnn(day=day, farm=farm, type_data="train", gap=gap, 
+#                            history_size=history_size, forecast_horizon=forecast_horizon, size="small")
+X_valid, y_valid = u.get_dataset_rnn(quarter=quarter, farm=farm, 
+                                     type_data="valid", gap=gap, 
+                                     history_size=history_size, 
+                                     forecast_horizon=forecast_horizon, 
+                                     size=size, tensor=True)
+X_test, y_test = u.get_dataset_rnn(quarter=quarter, farm=farm, 
+                                     type_data="test", gap=gap, 
+                                     history_size=history_size, 
+                                     forecast_horizon=forecast_horizon, 
+                                     size=size, tensor=True)
+
 
 val_set_len = X_valid.shape[0]
 seq_length = X_valid.shape[1]
 input_size = X_valid.shape[2]
 
-val = TensorDataset(X_valid, y_valid)
-val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, drop_last=False)
-
-test = TensorDataset(X_test, y_test)
-test_loader = DataLoader(test, batch_size=batch_size, shuffle=False, drop_last=False)
+val_loader = DataLoader(TensorDataset(X_valid, y_valid), batch_size=batch_size, shuffle=False, drop_last=False)
+test_loader = DataLoader(TensorDataset(X_test, y_test), batch_size=batch_size, shuffle=False, drop_last=False)
 
 model_names = ['results/history_forecast_510.csv', 
                # 'results/architecture_history_forecast_256.csv',
@@ -60,16 +54,20 @@ model_names = ['results/history_forecast_510.csv',
                'results/architecture_512.csv']
 
 
-
-
-
 best = u.plot_multiple_curve_losses(model_names, save_path="results/figure/rnn_curve_losses.pdf")
-
 
 model_names = list(map(u.split_name_hidden_size, model_names)) 
 
 print(best)
 print(model_names)
+
+rnn, hidden_size = model_names[0]
+
+model = u.init_model(rnns[rnn], input_size, hidden_size, seq_length, output_size=forecast_horizon, 
+                    gap_length=gap, histo_length=history_size, nhead=input_size, nlayers=num_layers, device=device, cell_name="BRC")
+
+
+
 # for model_name in model_names:
 
 

@@ -182,9 +182,9 @@ def plot_best_worst_histo(model, X, y, losses, loss_name, set_type, model_name, 
     plt.ylabel("Nbr of occurences")
     # print("n", n, np.max(n))
     # print("bins", bins)
-    step = 2 if set_type == "train" else 1
+    step = 3 if set_type == "train" else 1
     plt.yticks(range(0, int(np.max(n)), step))
-    plt.grid()
+    plt.grid(axis='y')
     plt.savefig(prefix_path + f"_histo_" + sufix_path)
     plt.close()
 
@@ -278,10 +278,9 @@ def plot_multiple_curve_losses(model_names, save_path=None):
         
         # print(df.columns)
         
-    # plt.ylim((0.02, 0.04))
     plt.xlabel("Epoch", fontsize="xx-large")
     plt.ylabel("MSE", fontsize="xx-large")
-    plt.ylim((0.0, 0.09))
+    plt.ylim((0.0, 0.16))
     plt.grid()
     plt.legend(prop={'size': 20})    
     if save_path:

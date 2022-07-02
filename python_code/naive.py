@@ -140,11 +140,11 @@ if __name__ == '__main__':
     # PLOT
     best = np.argmin(losses_valid)
     print(f"Best rmse: {losses_valid[best]}")
-    simple_plot(truth=y[best] ,forecast=y_pred[best], periods=96, save="results/figure/naive/naive_persist_valid_best.pdf")
+    simple_plot(truth=y[best] ,forecast=y_pred[best], periods=fh, save="results/figure/naive/naive_persist_valid_best.pdf")
 
     worst = np.argmax(losses_valid)
     print(f"Worst rmse: {losses_valid[worst]}")
-    simple_plot(truth=y[worst] ,forecast=y_pred[worst], periods=96, save="results/figure/naive/naive_persist_valid_worst.pdf")
+    simple_plot(truth=y[worst] ,forecast=y_pred[worst], periods=fh, save="results/figure/naive/naive_persist_valid_worst.pdf")
 
     # TEST PART
     X, y = get_dataset_rnn(quarter=quarter, farm=farm, type_data="test", gap=gap, history_size=history_size, forecast_horizon=fh, size="small", gefcom=args.gefcom)
