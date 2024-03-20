@@ -12,6 +12,7 @@ pip install -r requirements.txt
 ```
 
 # Repository structure
+```
 .
 ├── GEFcom2014.ipynb
 ├── README.md
@@ -37,6 +38,7 @@ pip install -r requirements.txt
 │   ├── transformer.py
 │   └── util.py
 └── requirements.txt
+```
 
 # Datasets
 
